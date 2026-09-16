@@ -5,6 +5,7 @@ import type { EventItem } from '@shared/types'
 import { useEvents } from './composables/useEvents'
 import { useImages } from './composables/useImages'
 import { isElectron, platformApi } from './platform'
+import { scheduleMobileReminders } from './platform/mobileReminders'
 import { computeDisplay } from './utils/calc'
 import EventCard from './components/EventCard.vue'
 import EventEditDialog from './components/EventEditDialog.vue'
@@ -47,14 +48,20 @@ function applyFont(scale: number): void {
 
 onMounted(() => {
   void load()
-    .then(syncAndroidWidget)
+    .then(() => {
+      syncAndroidWidget()
+      void scheduleMobileReminders(events.value)
+    })
     .catch((err) => {
       ElMessage.error('数据加载失败：' + (err instanceof Error ? err.message : String(err)))
     })
   // 数据在别处（比如小组件上）变化时，列表自动刷新
   unsubChanged = platformApi.onChanged(() => {
     clearImageCache() // 图片可能变了（如导入备份），重新读取
-    void load().then(syncAndroidWidget)
+    void load().then(() => {
+      syncAndroidWidget()
+      void scheduleMobileReminders(events.value)
+    })
   })
   void platformApi.widget.getState().then((s) => {
     widgetOn.value = s.visible
