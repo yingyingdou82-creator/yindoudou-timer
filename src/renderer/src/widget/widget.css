@@ -1,0 +1,61 @@
+/* 小组件页面基础样式：透明背景（圆角由窗口内容自己画） */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+}
+
+body {
+  font-family:
+    'PingFang SC',
+    'Microsoft YaHei',
+    'Segoe UI',
+    system-ui,
+    -apple-system,
+    sans-serif;
+  color: #3a4149;
+  overflow: hidden;
+}
+
+/* ---- 深色模式（html 加 dark 类时生效，跟随主窗口主题） ---- */
+html.dark .widget {
+  background: rgba(33, 38, 45, 0.93);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+html.dark .brand {
+  color: #cdd5df;
+}
+
+html.dark .tool {
+  color: #9aa4b1;
+}
+
+html.dark .tool:hover {
+  background: #3a4149;
+  color: #e5eaf1;
+}
+
+html.dark .rname {
+  color: #cdd5df;
+}
+
+html.dark .rcount {
+  color: #e5eaf1;
+}
+
+html.dark .empty {
+  color: #8a94a2;
+}
+
+html.dark .rows::-webkit-scrollbar-thumb {
+  background: #4a5462;
+}

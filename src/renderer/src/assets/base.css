@@ -1,0 +1,106 @@
+/* 全局基础样式 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  font-family:
+    'PingFang SC',
+    'Microsoft YaHei',
+    'Segoe UI',
+    system-ui,
+    -apple-system,
+    sans-serif;
+  color: #3a4149;
+  background: #f2f4f8;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---- 深色模式（html 加 dark 类时生效） ---- */
+html.dark body {
+  color: #d7dce3;
+  background: #1f242b;
+}
+
+html.dark .page {
+  background: linear-gradient(165deg, #272c34 0%, #21262d 60%, #1d2229 100%);
+}
+
+html.dark .topbar {
+  background: rgba(33, 38, 45, 0.8);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+
+html.dark .brand-name,
+html.dark .empty-title {
+  color: #e5eaf1;
+}
+
+html.dark .logo,
+html.dark .empty-bean {
+  background: linear-gradient(145deg, #3a4149, #22262d);
+}
+
+html.dark .set-row {
+  color: #d7dce3;
+}
+
+html.dark .preview {
+  background: linear-gradient(145deg, #2b3037, #23272e);
+  color: #e5eaf1;
+}
+
+html.dark .swatch {
+  box-shadow: inset 0 -3px 6px rgba(0, 0, 0, 0.35);
+}
+
+html.dark .icon-btn {
+  background: #2b3037;
+}
+
+html.dark .wc:hover {
+  background: #3a4149;
+  color: #e5eaf1;
+}
+
+html.dark .wc-close:hover {
+  background: #e81123;
+  color: #ffffff;
+}
+
+/* ---- 手机/窄屏适配 ---- */
+@media (max-width: 640px) {
+  .topbar {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 10px 14px;
+    padding-left: 14px;
+  }
+
+  .actions {
+    width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .list {
+    grid-template-columns: 1fr;
+    padding: 14px;
+  }
+
+  /* 弹窗在小屏幕上变宽 */
+  .el-dialog {
+    width: 94vw !important;
+    margin-top: 5vh !important;
+  }
+}

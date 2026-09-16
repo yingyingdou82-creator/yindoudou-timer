@@ -1,0 +1,65 @@
+{
+  "name": "yin-dou-dou-timer",
+  "version": "0.1.0",
+  "description": "银豆豆计时 —— 桌面日期倒计时 / 正计时小工具",
+  "main": "./out/main/index.js",
+  "private": true,
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && vue-tsc --noEmit -p tsconfig.web.json",
+    "build:web": "vite build --config vite.config.web.ts",
+    "dev:web": "vite --config vite.config.web.ts --host --port 5180",
+    "dist": "npm run build && cross-env ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder --win nsis"
+  },
+  "build": {
+    "appId": "com.yindoudou.timer",
+    "productName": "银豆豆计时",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**"
+    ],
+    "win": {
+      "icon": "assets/icons/bean-256.png",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "银豆豆计时"
+    },
+    "extraResources": [
+      {
+        "from": "assets/icons",
+        "to": "icons"
+      }
+    ]
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/cli": "^8.5.2",
+    "@capacitor/core": "^8.5.2",
+    "@types/node": "^24.13.5",
+    "@vitejs/plugin-vue": "^6.0.9",
+    "cross-env": "^10.1.0",
+    "electron": "^44.4.1",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^5.0.0",
+    "element-plus": "^2.14.5",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.6",
+    "vue": "^3.5.42",
+    "vue-tsc": "^3.3.11"
+  }
+}

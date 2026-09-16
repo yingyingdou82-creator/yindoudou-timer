@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">银豆豆计时</string>
+    <string name="title_activity_main">银豆豆计时</string>
+    <string name="package_name">com.yindoudou.timer</string>
+    <string name="custom_url_scheme">com.yindoudou.timer</string>
+    <string name="widget_desc">显示你的倒计时，随时看还有几天</string>
+</resources>

@@ -1,0 +1,26 @@
+# 依赖包（体积大，可用 npm install 随时恢复，不用存档）
+node_modules/
+
+# 构建产物（由代码自动生成，不用存档）
+out/
+dist/
+dist-web/
+release/
+
+# 日志与系统缓存文件
+*.log
+.DS_Store
+Thumbs.db
+.claude/settings.local.json
+
+# 安卓构建产物
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/capacitor-cordova-android-plugins/build/
+
+# 截图/清理等临时工具（仅本地使用，不上传）
+scripts/capture-screenshots.ps1
+scripts/kill-installed.ps1
+scripts/autocrop-screenshot.ps1
