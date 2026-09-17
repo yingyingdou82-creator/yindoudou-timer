@@ -19,13 +19,23 @@ import org.json.JSONObject;
  */
 public class YddWidgetProvider extends AppWidgetProvider {
 
-    private static final int MAX_ROWS = 5;
+    /** 这个尺寸最多显示几条事件（子类按尺寸覆写） */
+    protected int maxRows() {
+        return 5; // 中号（默认）
+    }
 
     static void pushUpdate(Context ctx) {
         AppWidgetManager mgr = AppWidgetManager.getInstance(ctx);
-        int[] ids = mgr.getAppWidgetIds(new ComponentName(ctx, YddWidgetProvider.class));
+        // 三种尺寸各是独立的小组件，都要刷新
+        updateOne(ctx, mgr, YddWidgetProviderSmall.class, new YddWidgetProviderSmall());
+        updateOne(ctx, mgr, YddWidgetProviderMedium.class, new YddWidgetProviderMedium());
+        updateOne(ctx, mgr, YddWidgetProviderLarge.class, new YddWidgetProviderLarge());
+    }
+
+    private static void updateOne(Context ctx, AppWidgetManager mgr, Class<?> cls, YddWidgetProvider p) {
+        int[] ids = mgr.getAppWidgetIds(new ComponentName(ctx, cls));
         if (ids.length > 0) {
-            new YddWidgetProvider().onUpdate(ctx, mgr, ids);
+            p.onUpdate(ctx, mgr, ids);
         }
     }
 
@@ -33,19 +43,20 @@ public class YddWidgetProvider extends AppWidgetProvider {
     public void onUpdate(Context ctx, AppWidgetManager mgr, int[] ids) {
         SharedPreferences prefs = ctx.getSharedPreferences("ydd_widget", Context.MODE_PRIVATE);
         JSONArray rows = parse(prefs.getString("data", "[]"));
+        final int max = maxRows();
 
         for (int id : ids) {
             RemoteViews views = new RemoteViews(ctx.getPackageName(), R.layout.ydd_widget);
 
-            int shown = Math.min(rows.length(), MAX_ROWS);
+            int shown = Math.min(rows.length(), max);
             if (shown == 0) {
                 views.setTextViewText(R.id.row0_name, "打开 App，勾选「显示在桌面小组件」");
                 views.setTextViewText(R.id.row0_count, "");
-                for (int i = 1; i < MAX_ROWS; i++) {
+                for (int i = 1; i < max; i++) {
                     views.setViewVisibility(rowId(i), android.view.View.GONE);
                 }
             } else {
-                for (int i = 0; i < MAX_ROWS; i++) {
+                for (int i = 0; i < max; i++) {
                     if (i < shown) {
                         JSONObject ev = rows.optJSONObject(i);
                         String name = ev != null ? ev.optString("n", "") : "";
@@ -87,7 +98,11 @@ public class YddWidgetProvider extends AppWidgetProvider {
             case 1: return R.id.row1;
             case 2: return R.id.row2;
             case 3: return R.id.row3;
-            default: return R.id.row4;
+            case 4: return R.id.row4;
+            case 5: return R.id.row5;
+            case 6: return R.id.row6;
+            case 7: return R.id.row7;
+            default: return R.id.row8;
         }
     }
 
@@ -97,7 +112,11 @@ public class YddWidgetProvider extends AppWidgetProvider {
             case 1: return R.id.row1_name;
             case 2: return R.id.row2_name;
             case 3: return R.id.row3_name;
-            default: return R.id.row4_name;
+            case 4: return R.id.row4_name;
+            case 5: return R.id.row5_name;
+            case 6: return R.id.row6_name;
+            case 7: return R.id.row7_name;
+            default: return R.id.row8_name;
         }
     }
 
@@ -107,7 +126,11 @@ public class YddWidgetProvider extends AppWidgetProvider {
             case 1: return R.id.row1_count;
             case 2: return R.id.row2_count;
             case 3: return R.id.row3_count;
-            default: return R.id.row4_count;
+            case 4: return R.id.row4_count;
+            case 5: return R.id.row5_count;
+            case 6: return R.id.row6_count;
+            case 7: return R.id.row7_count;
+            default: return R.id.row8_count;
         }
     }
 

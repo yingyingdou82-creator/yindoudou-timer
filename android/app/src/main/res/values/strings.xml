@@ -4,5 +4,7 @@
     <string name="title_activity_main">银豆豆计时</string>
     <string name="package_name">com.yindoudou.timer</string>
     <string name="custom_url_scheme">com.yindoudou.timer</string>
-    <string name="widget_desc">显示你的倒计时，随时看还有几天</string>
+    <string name="widget_desc_small">小尺寸：最多显示 2 条倒计时</string>
+    <string name="widget_desc_medium">中尺寸：最多显示 5 条倒计时</string>
+    <string name="widget_desc_large">大尺寸：最多显示 9 条倒计时</string>
 </resources>

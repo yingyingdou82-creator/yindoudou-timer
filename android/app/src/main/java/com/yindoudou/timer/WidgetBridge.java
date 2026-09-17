@@ -57,7 +57,8 @@ public class WidgetBridge extends Plugin {
             return;
         }
         AppWidgetManager mgr = AppWidgetManager.getInstance(act);
-        ComponentName provider = new ComponentName(act, YddWidgetProvider.class);
+        // 一键添加默认放"中号"；小号/大号在桌面长按 → 小组件里选
+        ComponentName provider = new ComponentName(act, YddWidgetProviderMedium.class);
         if (mgr.isRequestPinAppWidgetSupported()) {
             mgr.requestPinAppWidget(provider, null, null);
             JSObject ret = new JSObject();

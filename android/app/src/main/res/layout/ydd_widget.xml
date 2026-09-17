@@ -81,4 +81,56 @@
             android:textColor="#3D4653" />
     </LinearLayout>
 
+    <LinearLayout android:id="@+id/row5"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:layout_marginTop="4dp" android:gravity="center_vertical">
+        <TextView android:id="@+id/row5_name"
+            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+            android:textSize="13sp" android:textColor="#39424E" android:maxLines="1"
+            android:ellipsize="end" />
+        <TextView android:id="@+id/row5_count"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginStart="8dp" android:textSize="13sp" android:textStyle="bold"
+            android:textColor="#3D4653" />
+    </LinearLayout>
+
+    <LinearLayout android:id="@+id/row6"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:layout_marginTop="4dp" android:gravity="center_vertical">
+        <TextView android:id="@+id/row6_name"
+            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+            android:textSize="13sp" android:textColor="#39424E" android:maxLines="1"
+            android:ellipsize="end" />
+        <TextView android:id="@+id/row6_count"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginStart="8dp" android:textSize="13sp" android:textStyle="bold"
+            android:textColor="#3D4653" />
+    </LinearLayout>
+
+    <LinearLayout android:id="@+id/row7"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:layout_marginTop="4dp" android:gravity="center_vertical">
+        <TextView android:id="@+id/row7_name"
+            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+            android:textSize="13sp" android:textColor="#39424E" android:maxLines="1"
+            android:ellipsize="end" />
+        <TextView android:id="@+id/row7_count"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginStart="8dp" android:textSize="13sp" android:textStyle="bold"
+            android:textColor="#3D4653" />
+    </LinearLayout>
+
+    <LinearLayout android:id="@+id/row8"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:layout_marginTop="4dp" android:gravity="center_vertical">
+        <TextView android:id="@+id/row8_name"
+            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+            android:textSize="13sp" android:textColor="#39424E" android:maxLines="1"
+            android:ellipsize="end" />
+        <TextView android:id="@+id/row8_count"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginStart="8dp" android:textSize="13sp" android:textStyle="bold"
+            android:textColor="#3D4653" />
+    </LinearLayout>
+
 </LinearLayout>

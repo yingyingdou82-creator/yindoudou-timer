@@ -34,17 +34,39 @@
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
 
-        <!-- 桌面小组件 -->
+        <!-- 桌面小组件：小 / 中 / 大 三种尺寸 -->
         <receiver
-            android:name=".YddWidgetProvider"
+            android:name=".YddWidgetProviderSmall"
             android:exported="false"
-            android:label="银豆豆小组件">
+            android:label="银豆豆小组件·小">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/ydd_widget_info_small" />
+        </receiver>
+        <receiver
+            android:name=".YddWidgetProviderMedium"
+            android:exported="false"
+            android:label="银豆豆小组件·中">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/ydd_widget_info" />
+        </receiver>
+        <receiver
+            android:name=".YddWidgetProviderLarge"
+            android:exported="false"
+            android:label="银豆豆小组件·大">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/ydd_widget_info_large" />
         </receiver>
     </application>
 
