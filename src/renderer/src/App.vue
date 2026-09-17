@@ -79,25 +79,36 @@ onMounted(() => {
   unsubTheme = platformApi.onThemeChanged(applyTheme)
   unsubFont = platformApi.onFontChanged(applyFont)
 
-  // 安卓：点桌面小组件启动的话，自动弹出"勾选桌面事件"面板
-  if (!isElectron) {
-    try {
-      const cap = (window as unknown as WidgetCapacitor).Capacitor
-      void cap?.Plugins?.WidgetBridge?.getLaunchReason().then((r) => {
-        if (r?.reason === 'widget') {
-          showWidgetPicker.value = true
-        }
-      })
-    } catch {
-      // 不影响主流程
-    }
-  }
+  // 安卓：点桌面小组件启动（冷启动或从后台回来）都检查一次
+  checkWidgetLaunch()
+  document.addEventListener('visibilitychange', onVisibilityForWidget)
 })
+
+function checkWidgetLaunch(): void {
+  if (isElectron) return
+  try {
+    const cap = (window as unknown as WidgetCapacitor).Capacitor
+    void cap?.Plugins?.WidgetBridge?.getLaunchReason().then((r) => {
+      if (r?.reason === 'widget') {
+        showWidgetPicker.value = true
+      }
+    })
+  } catch {
+    // 不影响主流程
+  }
+}
+
+function onVisibilityForWidget(): void {
+  if (!document.hidden) {
+    checkWidgetLaunch()
+  }
+}
 
 onUnmounted(() => {
   unsubChanged?.()
   unsubTheme?.()
   unsubFont?.()
+  document.removeEventListener('visibilitychange', onVisibilityForWidget)
 })
 
 // —— 自绘标题栏的窗口控制 ——
