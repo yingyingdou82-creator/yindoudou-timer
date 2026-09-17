@@ -147,8 +147,22 @@ interface WidgetCapacitor {
       WidgetBridge?: {
         sync: (opts: { data: string }) => Promise<unknown>
         getLaunchReason: () => Promise<{ reason: string }>
+        requestPin?: () => Promise<{ ok: boolean }>
       }
     }
+  }
+}
+
+/** 请求把小组件"钉"到桌面（系统弹"添加到主屏幕"确认框，安卓专用） */
+function requestPinWidget(): void {
+  if (isElectron) return
+  try {
+    const cap = (window as unknown as WidgetCapacitor).Capacitor
+    void cap?.Plugins?.WidgetBridge?.requestPin?.().catch(() => {
+      ElMessage.info('这款桌面不支持一键添加，请长按桌面空白处 → 小组件 → 手动添加')
+    })
+  } catch {
+    // 不影响主流程
   }
 }
 
@@ -194,6 +208,12 @@ async function setOnDesktop(ev: EventItem, val: boolean): Promise<void> {
     await update(ev.id, { ...ev, onDesktop: val })
   } catch (err) {
     ElMessage.error('设置失败：' + (err instanceof Error ? err.message : String(err)))
+    return
+  }
+  // 安卓：第一次勾上桌面事件时，请求把小组件钉到桌面（系统弹确认框）
+  if (!isElectron && val && !localStorage.getItem('ydd_pin_requested')) {
+    localStorage.setItem('ydd_pin_requested', '1')
+    requestPinWidget()
   }
 }
 
@@ -380,6 +400,15 @@ async function onRemove(ev: EventItem): Promise<void> {
           <div class="wp-sheet-bar"></div>
           <h3 class="wp-sheet-title">桌面小组件</h3>
           <p class="wp-sheet-sub">勾选要显示在桌面的事件，改动即时生效</p>
+          <el-button
+            v-if="!isElectron"
+            class="wp-pin-btn"
+            text
+            size="small"
+            @click="requestPinWidget"
+          >
+            ＋ 桌面上还没有小组件？点这里一键添加
+          </el-button>
           <div class="wp-sheet-list">
             <label
               v-for="ev in pickerRows"
@@ -898,7 +927,13 @@ html.dark .wp-sheet-title {
 .wp-sheet-sub {
   font-size: 12px;
   color: #8a94a2;
-  margin: 4px 0 10px;
+  margin: 4px 0 4px;
+}
+
+.wp-pin-btn {
+  margin: 0 0 8px;
+  padding: 0;
+  font-size: 12px;
 }
 
 .wp-sheet-list {
