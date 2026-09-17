@@ -32,4 +32,13 @@ public class WidgetBridge extends Plugin {
             call.reject("小组件数据同步失败: " + e.getMessage());
         }
     }
+
+    /** 界面启动时问一次"是不是点桌面小组件进来的"，读完即清（只生效一次） */
+    @PluginMethod
+    public void getLaunchReason(PluginCall call) {
+        JSObject ret = new JSObject();
+        ret.put("reason", MainActivity.launchedFromWidget ? "widget" : "normal");
+        MainActivity.launchedFromWidget = false;
+        call.resolve(ret);
+    }
 }

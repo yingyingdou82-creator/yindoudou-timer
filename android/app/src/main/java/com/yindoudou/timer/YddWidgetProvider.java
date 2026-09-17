@@ -60,13 +60,14 @@ public class YddWidgetProvider extends AppWidgetProvider {
                 }
             }
 
-            // 点小部件任意位置 = 打开 App
-            Intent open = ctx.getPackageManager().getLaunchIntentForPackage(ctx.getPackageName());
-            if (open != null) {
-                PendingIntent pi = PendingIntent.getActivity(
-                    ctx, 0, open, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
-                views.setOnClickPendingIntent(R.id.widget_root, pi);
-            }
+            // 点小部件任意位置 = 打开 App，并带上"来自小组件"标记
+            // （界面收到标记后自动弹出"勾选桌面事件"面板）
+            Intent open = new Intent(ctx, MainActivity.class)
+                .putExtra("from_widget", true)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            PendingIntent pi = PendingIntent.getActivity(
+                ctx, 0, open, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+            views.setOnClickPendingIntent(R.id.widget_root, pi);
 
             mgr.updateAppWidget(id, views);
         }

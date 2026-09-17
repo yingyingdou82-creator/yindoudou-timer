@@ -7,7 +7,7 @@ import { isElectron, platformApi } from '../platform'
  * 设置面板：电脑版放在「⚙ 设置」弹窗里，手机版是底部导航的「设置」页。
  */
 
-const emit = defineEmits<{ replayGuide: [] }>()
+const emit = defineEmits<{ replayGuide: []; openWidgetPicker: [] }>()
 
 const dark = ref(false)
 const fontScale = ref(1)
@@ -110,6 +110,11 @@ async function doImport(): Promise<void> {
     <div class="tip">
       导出：全部事件和图片存成一个文件<br />
       导入：可选「合并」或「替换」
+    </div>
+
+    <div v-if="!isElectron" class="row">
+      <span>桌面小组件</span>
+      <el-button size="small" @click="emit('openWidgetPicker')">选择事件</el-button>
     </div>
 
     <div class="row">

@@ -46,6 +46,9 @@ function finishGuide(): void {
   void platformApi.settings.setGuideShown(true)
 }
 
+// 「桌面小组件 · 选择事件」底部弹层（安卓端：点桌面小组件进来自动弹出）
+const showWidgetPicker = ref(false)
+
 onMounted(() => {
   void load()
     .then(() => {
@@ -75,6 +78,20 @@ onMounted(() => {
   })
   unsubTheme = platformApi.onThemeChanged(applyTheme)
   unsubFont = platformApi.onFontChanged(applyFont)
+
+  // 安卓：点桌面小组件启动的话，自动弹出"勾选桌面事件"面板
+  if (!isElectron) {
+    try {
+      const cap = (window as unknown as WidgetCapacitor).Capacitor
+      void cap?.Plugins?.WidgetBridge?.getLaunchReason().then((r) => {
+        if (r?.reason === 'widget') {
+          showWidgetPicker.value = true
+        }
+      })
+    } catch {
+      // 不影响主流程
+    }
+  }
 })
 
 onUnmounted(() => {
@@ -127,7 +144,10 @@ interface WidgetCapacitor {
   Capacitor?: {
     isNativePlatform?: () => boolean
     Plugins?: {
-      WidgetBridge?: { sync: (opts: { data: string }) => Promise<unknown> }
+      WidgetBridge?: {
+        sync: (opts: { data: string }) => Promise<unknown>
+        getLaunchReason: () => Promise<{ reason: string }>
+      }
     }
   }
 }
@@ -346,9 +366,42 @@ async function onRemove(ev: EventItem): Promise<void> {
     <section v-if="activeTab === 'settings'" class="settings-page">
       <h2 class="settings-title">⚙ 设置</h2>
       <div class="settings-card">
-        <SettingsPanel @replay-guide="showGuide = true" />
+        <SettingsPanel
+          @replay-guide="showGuide = true"
+          @open-widget-picker="showWidgetPicker = true"
+        />
       </div>
     </section>
+
+    <!-- 桌面小组件 · 选择事件（圆圈打勾，点桌面小组件进入时自动弹出） -->
+    <transition name="sheet">
+      <div v-if="showWidgetPicker" class="wp-sheet-mask" @click.self="showWidgetPicker = false">
+        <div class="wp-sheet">
+          <div class="wp-sheet-bar"></div>
+          <h3 class="wp-sheet-title">桌面小组件</h3>
+          <p class="wp-sheet-sub">勾选要显示在桌面的事件，改动即时生效</p>
+          <div class="wp-sheet-list">
+            <label
+              v-for="ev in pickerRows"
+              :key="ev.id"
+              class="wp-sheet-row"
+              @click="setOnDesktop(ev, !ev.onDesktop)"
+            >
+              <span class="circle-check" :class="{ checked: ev.onDesktop }">✓</span>
+              <span class="wp-icon">{{ ev.icon }}</span>
+              <span class="wp-name">{{ ev.name }}</span>
+              <span class="wp-count">{{ computeDisplay(ev).text }}</span>
+            </label>
+            <div v-if="pickerRows.length === 0" class="wp-sheet-empty">
+              还没有事件，先添加一个吧
+            </div>
+          </div>
+          <el-button type="primary" round class="wp-sheet-done" @click="showWidgetPicker = false">
+            完成
+          </el-button>
+        </div>
+      </div>
+    </transition>
 
     <!-- 手机端：底部导航（首页 / 添加 / 设置），电脑端自动隐藏 -->
     <nav class="bottom-nav">
@@ -795,6 +848,160 @@ html.dark .nav-add {
 
 .page.is-mobile .settings-page {
   padding-bottom: 90px;
+}
+
+/* —— 桌面小组件选择弹层（圆圈打勾） —— */
+.wp-sheet-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(24, 29, 37, 0.45);
+  display: flex;
+  align-items: flex-end;
+}
+
+.wp-sheet {
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  background: #ffffff;
+  border-radius: 26px 26px 0 0;
+  padding: 10px 20px calc(20px + env(safe-area-inset-bottom));
+}
+
+html.dark .wp-sheet {
+  background: #262b33;
+}
+
+.wp-sheet-bar {
+  width: 42px;
+  height: 5px;
+  border-radius: 999px;
+  background: #d5dce5;
+  margin: 6px auto 10px;
+}
+
+html.dark .wp-sheet-bar {
+  background: #46505d;
+}
+
+.wp-sheet-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #39424e;
+}
+
+html.dark .wp-sheet-title {
+  color: #e5eaf1;
+}
+
+.wp-sheet-sub {
+  font-size: 12px;
+  color: #8a94a2;
+  margin: 4px 0 10px;
+}
+
+.wp-sheet-list {
+  max-height: 52vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 14px;
+}
+
+.wp-sheet-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 8px;
+  border-radius: 14px;
+  cursor: pointer;
+}
+
+.wp-sheet-row:active {
+  background: #f2f5f9;
+}
+
+html.dark .wp-sheet-row:active {
+  background: #323943;
+}
+
+/* 圆圈对勾 */
+.circle-check {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid #c3ccd8;
+  color: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+
+.circle-check.checked {
+  border-color: #5d90c4;
+  background: #5d90c4;
+  color: #ffffff;
+}
+
+html.dark .circle-check {
+  border-color: #4a5462;
+}
+
+.wp-sheet-row .wp-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #39424e;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html.dark .wp-sheet-row .wp-name {
+  color: #d7dce3;
+}
+
+.wp-sheet-row .wp-count {
+  margin-left: auto;
+  font-size: 11px;
+  color: #9aa4b1;
+  white-space: nowrap;
+}
+
+.wp-sheet-empty {
+  padding: 26px 0;
+  text-align: center;
+  font-size: 13px;
+  color: #9aa4b1;
+}
+
+.wp-sheet-done {
+  width: 100%;
+}
+
+.sheet-enter-active,
+.sheet-leave-active {
+  transition: opacity 0.2s;
+}
+
+.sheet-enter-active .wp-sheet,
+.sheet-leave-active .wp-sheet {
+  transition: transform 0.25s;
+}
+
+.sheet-enter-from,
+.sheet-leave-to {
+  opacity: 0;
+}
+
+.sheet-enter-from .wp-sheet,
+.sheet-leave-to .wp-sheet {
+  transform: translateY(40px);
 }
 
 /* —— 手机端设置页 —— */

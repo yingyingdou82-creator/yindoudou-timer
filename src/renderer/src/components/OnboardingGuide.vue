@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { isElectron } from '../platform'
 
 /**
- * 新手指引：第一次打开 App 时展示 4 步引导，看完不再打扰（可在设置里重看）。
+ * 新手指引：第一次打开 App 时展示引导，看完不再打扰（可在设置里重看）。
+ * 手机和电脑各显示各的操作方式，不混着讲。
  */
 
 const props = defineProps<{ show: boolean }>()
@@ -10,31 +12,56 @@ const emit = defineEmits<{ finished: [] }>()
 
 const step = ref(0)
 
-const STEPS = [
-  {
-    icon: '🏠',
-    title: '首页看事件',
-    desc: '所有重要的日子都在这里，倒计时一眼可见。完成的事情可以「归档」收起来。'
-  },
-  {
-    icon: '➕',
-    title: '添加事件',
-    desc: '手机：点底部中间的 ＋ 号。电脑：点右上角「添加事件」。只需填日期——过去的自动正计时，未来的自动倒计时。'
-  },
-  {
-    icon: '⚙️',
-    title: '个性化设置',
-    desc: '深色模式、字体大小、备份导出导入都在「设置」里，按您的习惯调。'
-  },
-  {
-    icon: '🧩',
-    title: '桌面小组件',
-    desc: '电脑：点「🖥 小组件」勾选事件放上桌面。安卓：长按桌面 → 小组件 → 银豆豆小组件。'
-  }
-] as const
+const STEPS = computed(() =>
+  isElectron
+    ? [
+        {
+          icon: '🏠',
+          title: '首页看事件',
+          desc: '所有重要的日子都在这里，倒计时一眼可见。完成的事情可以「归档」收起来。'
+        },
+        {
+          icon: '➕',
+          title: '添加事件',
+          desc: '点右上角「＋ 添加事件」。只需填日期——过去的自动正计时，未来的自动倒计时。'
+        },
+        {
+          icon: '🖥',
+          title: '桌面小组件',
+          desc: '点顶部「🖥 小组件」按钮，勾选想放上桌面的事件，悬浮面板随时可见。'
+        },
+        {
+          icon: '⚙️',
+          title: '个性化设置',
+          desc: '右上角「⚙ 设置」里：深色模式、字体大小、开机自启、备份导出导入。'
+        }
+      ]
+    : [
+        {
+          icon: '🏠',
+          title: '首页看事件',
+          desc: '所有重要的日子都在这里，倒计时一眼可见。完成的事情可以「归档」收起来。'
+        },
+        {
+          icon: '➕',
+          title: '添加事件',
+          desc: '点底部中间的 ＋ 号。只需填日期——过去的自动正计时，未来的自动倒计时。'
+        },
+        {
+          icon: '🧩',
+          title: '桌面小组件',
+          desc: '长按手机桌面空白处 → 选「小组件」→ 找到「银豆豆小组件」添加，倒计时放桌面。'
+        },
+        {
+          icon: '⚙️',
+          title: '个性化设置',
+          desc: '底部「设置」里：深色模式、字体大小、备份导出导入，按习惯调。'
+        }
+      ]
+)
 
-const current = computed(() => STEPS[step.value])
-const isLast = computed(() => step.value === STEPS.length - 1)
+const current = computed(() => STEPS.value[step.value])
+const isLast = computed(() => step.value === STEPS.value.length - 1)
 
 watch(
   () => props.show,
