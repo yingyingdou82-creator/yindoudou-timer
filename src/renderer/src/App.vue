@@ -257,7 +257,7 @@ async function onRemove(ev: EventItem): Promise<void> {
 </script>
 
 <template>
-  <div class="page" :class="{ 'is-mac': isMac }">
+  <div class="page" :class="{ 'is-mac': isMac, 'is-mobile': !isElectron }">
     <header class="topbar" @dblclick="onTopbarDblclick">
       <div class="brand">
         <span class="logo">🫘</span>
@@ -709,8 +709,92 @@ html.dark .arch-name {
 }
 
 /* —— 手机端底部导航 —— */
+/* 基础样式常驻；显示与否由 .is-mobile（手机/安卓环境）或窄屏决定 */
 .bottom-nav {
-  display: none; /* 电脑端不显示，窄屏时显示（见媒体查询） */
+  display: none;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
+  height: calc(60px + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  align-items: stretch;
+  justify-content: space-around;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 -4px 18px rgba(60, 74, 96, 0.12);
+}
+
+html.dark .bottom-nav {
+  background: rgba(30, 34, 41, 0.95);
+}
+
+.nav-item {
+  flex: 1;
+  border: none;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: #8a94a2;
+  cursor: pointer;
+}
+
+.nav-item.active {
+  color: #5d8fbd;
+}
+
+.nav-icon {
+  font-size: 21px;
+  line-height: 1;
+}
+
+.nav-label {
+  font-size: 11px;
+}
+
+/* 中间的 ＋ 按钮：凸起的圆 */
+.nav-add {
+  width: 56px;
+  height: 56px;
+  margin-top: -22px;
+  border: none;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #7db3e0, #5d90c4);
+  color: #ffffff;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+  align-self: flex-start;
+  box-shadow:
+    0 6px 16px rgba(93, 144, 196, 0.45),
+    0 0 0 5px rgba(255, 255, 255, 0.9);
+}
+
+html.dark .nav-add {
+  box-shadow:
+    0 6px 16px rgba(0, 0, 0, 0.5),
+    0 0 0 5px rgba(30, 34, 41, 0.95);
+}
+
+.nav-add:active {
+  transform: scale(0.94);
+}
+
+/* —— 手机/安卓环境（不管屏幕多宽都用手机版式：底部导航常驻） —— */
+.page.is-mobile .actions {
+  display: none;
+}
+
+.page.is-mobile .bottom-nav {
+  display: flex;
+}
+
+.page.is-mobile .settings-page {
+  padding-bottom: 90px;
 }
 
 /* —— 手机端设置页 —— */
@@ -763,88 +847,17 @@ html.dark .settings-card {
     width: auto;
   }
 
-  /* 电脑端按钮组（小组件/设置/添加/窗口控制）在手机上全部隐藏，功能移到底部导航 */
+  /* 电脑端按钮组在窄窗口也收进底部导航（桌面窄窗口场景） */
   .actions {
     display: none;
   }
 
-  .page {
-    padding-bottom: 64px;
-  }
-
   .bottom-nav {
     display: flex;
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 100;
-    height: calc(60px + env(safe-area-inset-bottom));
-    padding-bottom: env(safe-area-inset-bottom);
-    align-items: stretch;
-    justify-content: space-around;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    box-shadow: 0 -4px 18px rgba(60, 74, 96, 0.12);
   }
 
-  html.dark .bottom-nav {
-    background: rgba(30, 34, 41, 0.95);
-  }
-
-  .nav-item {
-    flex: 1;
-    border: none;
-    background: transparent;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 2px;
-    color: #8a94a2;
-    cursor: pointer;
-    font-size: 11px;
-  }
-
-  .nav-item.active {
-    color: #5d8fbd;
-  }
-
-  .nav-icon {
-    font-size: 21px;
-    line-height: 1;
-  }
-
-  .nav-label {
-    font-size: 11px;
-  }
-
-  /* 中间的 ＋ 按钮：凸起的圆 */
-  .nav-add {
-    width: 56px;
-    height: 56px;
-    margin-top: -22px;
-    border: none;
-    border-radius: 50%;
-    background: linear-gradient(145deg, #7db3e0, #5d90c4);
-    color: #ffffff;
-    font-size: 28px;
-    line-height: 1;
-    cursor: pointer;
-    align-self: flex-start;
-    box-shadow:
-      0 6px 16px rgba(93, 144, 196, 0.45),
-      0 0 0 5px rgba(255, 255, 255, 0.9);
-  }
-
-  html.dark .nav-add {
-    box-shadow:
-      0 6px 16px rgba(0, 0, 0, 0.5),
-      0 0 0 5px rgba(30, 34, 41, 0.95);
-  }
-
-  .nav-add:active {
-    transform: scale(0.94);
+  .page {
+    padding-bottom: 64px;
   }
 }
 </style>
