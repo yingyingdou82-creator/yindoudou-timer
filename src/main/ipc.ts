@@ -104,6 +104,9 @@ export function registerEventIpc(getMainWindow: () => MainWindowType | null): vo
       app.setLoginItemSettings({ openAtLogin: Boolean(value) })
     }
   })
+  ipcMain.handle('settings:setGuideShown', (_event, value: boolean) => {
+    saveAppSettings({ guideShown: Boolean(value) })
+  })
 
   // 备份
   ipcMain.handle('backup:export', () => exportBackup(getMainWindow()))

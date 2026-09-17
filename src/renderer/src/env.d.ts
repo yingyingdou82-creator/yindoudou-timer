@@ -32,10 +32,16 @@ declare global {
       }
       onMaximized(cb: (v: boolean) => void): () => void
       settings: {
-        get(): Promise<{ theme: 'light' | 'dark'; fontScale: number; autoLaunch: boolean }>
+        get(): Promise<{
+          theme: 'light' | 'dark'
+          fontScale: number
+          autoLaunch: boolean
+          guideShown: boolean
+        }>
         setTheme(theme: 'light' | 'dark'): Promise<'light' | 'dark'>
         setFontScale(value: number): Promise<number>
         setAutoLaunch(value: boolean): Promise<void>
+        setGuideShown(value: boolean): Promise<void>
       }
       onThemeChanged(cb: (theme: 'light' | 'dark') => void): () => void
       onFontChanged(cb: (scale: number) => void): () => void

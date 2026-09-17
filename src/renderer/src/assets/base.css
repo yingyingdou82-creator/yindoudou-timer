@@ -78,6 +78,17 @@ html.dark .wc-close:hover {
 }
 
 /* ---- 手机/窄屏适配 ---- */
+/* 弹窗内容超高时可滚动（小屏手机必装，长弹窗不再被屏幕卡住） */
+.el-dialog__body {
+  max-height: 72vh;
+  overflow-y: auto;
+}
+
+/* 日期选择等弹层在小屏幕上收紧 */
+.el-picker-panel {
+  max-width: 94vw;
+}
+
 @media (max-width: 640px) {
   .topbar {
     flex-wrap: wrap;
@@ -86,21 +97,24 @@ html.dark .wc-close:hover {
     padding-left: 14px;
   }
 
-  .actions {
-    width: 100%;
-    justify-content: flex-end;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
   .list {
     grid-template-columns: 1fr;
     padding: 14px;
   }
 
-  /* 弹窗在小屏幕上变宽 */
+  /* 弹窗在小屏幕上几乎全宽 */
   .el-dialog {
     width: 94vw !important;
-    margin-top: 5vh !important;
+    margin-top: 3vh !important;
+  }
+
+  .el-dialog__body {
+    max-height: 66vh;
+  }
+
+  /* 输入框字号 16px 起：防止手机聚焦时页面自动放大 */
+  .el-input__inner,
+  .el-textarea__inner {
+    font-size: 16px;
   }
 }

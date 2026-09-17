@@ -61,9 +61,13 @@ contextBridge.exposeInMainWorld('api', {
     }
   },
   settings: {
-    /** 读取通用设置（主题、字体大小、开机自启） */
-    get: (): Promise<{ theme: 'light' | 'dark'; fontScale: number; autoLaunch: boolean }> =>
-      ipcRenderer.invoke('settings:get'),
+    /** 读取通用设置（主题、字体大小、开机自启、新手指引） */
+    get: (): Promise<{
+      theme: 'light' | 'dark'
+      fontScale: number
+      autoLaunch: boolean
+      guideShown: boolean
+    }> => ipcRenderer.invoke('settings:get'),
     /** 切换主题，所有窗口即时生效 */
     setTheme: (theme: 'light' | 'dark'): Promise<'light' | 'dark'> =>
       ipcRenderer.invoke('settings:setTheme', theme),
@@ -72,7 +76,10 @@ contextBridge.exposeInMainWorld('api', {
       ipcRenderer.invoke('settings:setFontScale', value),
     /** 设置开机自启（正式安装包里生效） */
     setAutoLaunch: (value: boolean): Promise<void> =>
-      ipcRenderer.invoke('settings:setAutoLaunch', value)
+      ipcRenderer.invoke('settings:setAutoLaunch', value),
+    /** 标记新手指引已看过 */
+    setGuideShown: (value: boolean): Promise<void> =>
+      ipcRenderer.invoke('settings:setGuideShown', value)
   },
   /** 订阅"主题变了"通知（主窗口和小组件都会收到） */
   onThemeChanged: (cb: (theme: 'light' | 'dark') => void): (() => void) => {

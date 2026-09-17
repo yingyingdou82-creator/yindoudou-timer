@@ -59,9 +59,16 @@ export interface AppSettings {
   /** 界面字体大小倍数（0.85 ~ 1.4） */
   fontScale: number
   autoLaunch: boolean
+  /** 是否已看过新手指引（看完不再自动弹出） */
+  guideShown: boolean
 }
 
-const APP_DEFAULTS: AppSettings = { theme: 'light', fontScale: 1, autoLaunch: false }
+const APP_DEFAULTS: AppSettings = {
+  theme: 'light',
+  fontScale: 1,
+  autoLaunch: false,
+  guideShown: false
+}
 
 export function getAppSettings(): AppSettings {
   try {
@@ -71,7 +78,8 @@ export function getAppSettings(): AppSettings {
     return {
       theme: parsed?.theme === 'dark' ? 'dark' : 'light',
       fontScale: Number.isFinite(fs) && fs >= 0.85 && fs <= 1.4 ? fs : 1,
-      autoLaunch: Boolean(parsed?.autoLaunch)
+      autoLaunch: Boolean(parsed?.autoLaunch),
+      guideShown: Boolean(parsed?.guideShown)
     }
   } catch {
     return { ...APP_DEFAULTS }

@@ -143,29 +143,17 @@ function blankDraft(): EventDraft {
 
 const draft = reactive<EventDraft>(blankDraft())
 
-// 是否为"时间段"事件（一个日期段，有开始和截止）
-const isRange = ref(false)
-
-// 日期段选择器：一个控件同时选出开始和截止日期
-const rangeValue = computed<string[] | null>({
-  get: () => (draft.date && draft.endDate ? [draft.date, draft.endDate] : null),
-  set: (v: string[] | null) => {
-    if (v && v[0] && v[1]) {
-      draft.date = v[0]
-      draft.endDate = v[1]
-    } else {
-      draft.endDate = ''
-    }
+// 时间段：默认只显示一个日期框；点"+ 设为时间段"才出现截止日期框
+function enableRange(): void {
+  if (!draft.endDate) {
+    draft.endDate = draft.date // 先默认和开始日期同一天，用户可再改
   }
-})
+  draft.includeStartDay = false // 时间段事件不支持"包含起始日"
+}
 
-watch(isRange, (on) => {
-  if (!on) {
-    draft.endDate = ''
-  } else {
-    draft.includeStartDay = false // 时间段事件不支持"包含起始日"
-  }
-})
+function disableRange(): void {
+  draft.endDate = ''
+}
 
 // 每次打开时，用已有事件填充（编辑）或重置为空白（新建）
 watch(
@@ -173,7 +161,6 @@ watch(
   (open) => {
     if (!open) return
     Object.assign(draft, blankDraft(), props.event ? { ...props.event } : null)
-    isRange.value = Boolean(props.event?.endDate)
     // 重置图片状态：预览已有图片，或清空
     pendingImage.value = null
     imagePreview.value = ''
@@ -200,7 +187,7 @@ function cleanDraft(): EventDraft {
     name: draft.name.trim(),
     date: draft.date,
     time: (draft.time ?? '').trim(),
-    endDate: isRange.value ? draft.endDate : '',
+    endDate: draft.endDate,
     remindMinutes: (draft.time ?? '').trim() ? draft.remindMinutes : 0,
     countType: draft.countType,
     workdayHoliday: draft.workdayHoliday,
@@ -221,8 +208,8 @@ async function onSave(): Promise<void> {
   } catch {
     return // 校验不过，表单里已经标红了
   }
-  if (isRange.value && !draft.endDate) {
-    ElMessage.warning('请选择时间段的开始和截止日期')
+  if (draft.endDate && draft.endDate < draft.date) {
+    ElMessage.warning('截止日期不能早于开始日期')
     return
   }
   saving.value = true
@@ -274,29 +261,32 @@ async function onSave(): Promise<void> {
         />
       </el-form-item>
 
-      <el-form-item label="日期（过去的日期＝正计时；未来的日期＝倒计时，自动判断）" prop="date">
+      <el-form-item label="日期（过去＝正计时；未来＝倒计时，自动判断）" prop="date">
         <el-date-picker
-          v-if="!isRange"
           v-model="draft.date"
           type="date"
           value-format="YYYY-MM-DD"
           placeholder="选择日期"
           style="width: 100%"
         />
+      </el-form-item>
+
+      <el-form-item v-if="draft.endDate" label="截止日期" prop="endDate">
         <el-date-picker
-          v-else
-          v-model="rangeValue"
-          type="daterange"
+          v-model="draft.endDate"
+          type="date"
           value-format="YYYY-MM-DD"
-          range-separator="至"
-          start-placeholder="开始日期"
-          end-placeholder="截止日期"
+          placeholder="选择截止日期"
           style="width: 100%"
         />
-        <div class="range-toggle">
-          <el-switch v-model="isRange" size="small" />
-          <span class="form-tip">时间段（有开始和截止日期，比如比赛期、报名期）</span>
-        </div>
+        <el-button class="range-off" link type="danger" size="small" @click="disableRange">
+          取消时间段
+        </el-button>
+      </el-form-item>
+      <el-form-item v-else>
+        <el-button link size="small" @click="enableRange">
+          ＋ 设为时间段（有开始和截止日期，比如比赛期、报名期）
+        </el-button>
       </el-form-item>
 
       <el-form-item label="具体时间（可选，比赛、报名等准时开始的事情填）">
@@ -340,7 +330,7 @@ async function onSave(): Promise<void> {
         </span>
       </el-form-item>
 
-      <el-form-item v-if="!isRange">
+      <el-form-item v-if="!draft.endDate">
         <span class="inline-option">
           <el-switch v-model="draft.includeStartDay" />
           <span class="form-tip">包含起始日：起算的第一天也算进计时（整体多算 1 天）</span>
@@ -458,11 +448,8 @@ async function onSave(): Promise<void> {
   align-items: center;
 }
 
-.range-toggle {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 8px;
+.range-off {
+  margin-top: 4px;
 }
 
 .img-picker {

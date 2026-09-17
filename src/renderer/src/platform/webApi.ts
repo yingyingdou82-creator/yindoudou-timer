@@ -14,6 +14,7 @@ interface WebSettings {
   theme: 'light' | 'dark'
   fontScale: number
   autoLaunch: boolean
+  guideShown: boolean
 }
 
 const IMG_PREFIX = 'img:'
@@ -39,12 +40,14 @@ async function readSettings(): Promise<WebSettings> {
   const s = (await kvGet<WebSettings>('settings')) ?? {
     theme: 'light' as const,
     fontScale: 1,
-    autoLaunch: false
+    autoLaunch: false,
+    guideShown: false
   }
   const fs = Number(s.fontScale)
   return {
     ...s,
-    fontScale: Number.isFinite(fs) && fs >= 0.85 && fs <= 1.4 ? fs : 1
+    fontScale: Number.isFinite(fs) && fs >= 0.85 && fs <= 1.4 ? fs : 1,
+    guideShown: Boolean(s.guideShown)
   }
 }
 
@@ -191,6 +194,10 @@ export function createWebApi(): WebApi {
       },
       setAutoLaunch: async () => {
         // 手机上没有"开机自启"，静默忽略
+      },
+      setGuideShown: async (value: boolean) => {
+        const s = await readSettings()
+        await writeSettings({ ...s, guideShown: value })
       }
     },
     onThemeChanged: (cb: (theme: 'light' | 'dark') => void) => {

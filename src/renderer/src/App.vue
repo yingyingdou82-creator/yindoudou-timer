@@ -9,6 +9,8 @@ import { scheduleMobileReminders } from './platform/mobileReminders'
 import { computeDisplay } from './utils/calc'
 import EventCard from './components/EventCard.vue'
 import EventEditDialog from './components/EventEditDialog.vue'
+import SettingsPanel from './components/SettingsPanel.vue'
+import OnboardingGuide from './components/OnboardingGuide.vue'
 
 const { events, load, remove, update } = useEvents()
 const { clearAll: clearImageCache } = useImages()
@@ -20,30 +22,28 @@ const editing = ref<EventItem | null>(null)
 const widgetOn = ref(false)
 let unsubChanged: (() => void) | undefined
 
-// 主题、字体大小与开机自启
-const dark = ref(false)
-const autoLaunch = ref(false)
-const fontScale = ref(1)
+// 主题与字体（全局应用）
 let unsubTheme: (() => void) | undefined
 let unsubFont: (() => void) | undefined
 
-// 字体大小四档
-const FONT_STEPS = [
-  { label: '小', value: 0.9 },
-  { label: '标准', value: 1 },
-  { label: '大', value: 1.15 },
-  { label: '特大', value: 1.3 }
-]
-
 function applyTheme(theme: 'light' | 'dark'): void {
-  dark.value = theme === 'dark'
-  document.documentElement.classList.toggle('dark', dark.value)
+  document.documentElement.classList.toggle('dark', theme === 'dark')
 }
 
 function applyFont(scale: number): void {
-  fontScale.value = scale
   // zoom 会把整个界面（含 px 尺寸）等比放大缩小，电脑和手机都支持
   document.documentElement.style.zoom = String(scale)
+}
+
+// 手机端底部导航：首页 / 添加 / 设置
+const activeTab = ref<'home' | 'settings'>('home')
+
+// 新手指引（第一次打开时展示）
+const showGuide = ref(false)
+
+function finishGuide(): void {
+  showGuide.value = false
+  void platformApi.settings.setGuideShown(true)
 }
 
 onMounted(() => {
@@ -69,7 +69,9 @@ onMounted(() => {
   void platformApi.settings.get().then((s) => {
     applyTheme(s.theme)
     applyFont(s.fontScale)
-    autoLaunch.value = s.autoLaunch
+    if (!s.guideShown) {
+      showGuide.value = true
+    }
   })
   unsubTheme = platformApi.onThemeChanged(applyTheme)
   unsubFont = platformApi.onFontChanged(applyFont)
@@ -80,20 +82,6 @@ onUnmounted(() => {
   unsubTheme?.()
   unsubFont?.()
 })
-
-async function toggleTheme(val: boolean): Promise<void> {
-  await platformApi.settings.setTheme(val ? 'dark' : 'light') // 广播回来后自动应用
-}
-
-async function toggleAutoLaunch(val: boolean): Promise<void> {
-  await platformApi.settings.setAutoLaunch(val)
-  autoLaunch.value = val
-  ElMessage.success(val ? '已开启开机自启（装成正式软件后生效）' : '已关闭开机自启')
-}
-
-async function pickFont(value: number): Promise<void> {
-  await platformApi.settings.setFontScale(value) // 广播回来后自动应用
-}
 
 // —— 自绘标题栏的窗口控制 ——
 const maximized = ref(false)
@@ -129,6 +117,11 @@ function onTopbarDblclick(e: MouseEvent): void {
   winMaxToggle()
 }
 
+function openAddFromNav(): void {
+  activeTab.value = 'home'
+  openCreate()
+}
+
 // —— 安卓桌面小组件数据同步（只在安卓 App 里生效，网页/电脑版自动跳过） ——
 interface WidgetCapacitor {
   Capacitor?: {
@@ -156,25 +149,6 @@ function syncAndroidWidget(): void {
     void bridge.sync({ data: JSON.stringify(rows) })
   } catch {
     // 同步失败不影响主流程
-  }
-}
-
-// —— 备份导出 / 导入 ——
-async function doExport(): Promise<void> {
-  const r = await platformApi.backup.export()
-  if (r.ok && r.path) {
-    ElMessage.success(`备份已保存到：${r.path}`)
-  } else if (r.error) {
-    ElMessage.error('导出失败：' + r.error)
-  }
-}
-
-async function doImport(): Promise<void> {
-  const r = await platformApi.backup.import()
-  if (r.ok) {
-    ElMessage.success(`导入成功，共 ${r.imported} 条事件`)
-  } else if (r.error) {
-    ElMessage.error('导入失败：' + r.error)
   }
 }
 
@@ -289,13 +263,13 @@ async function onRemove(ev: EventItem): Promise<void> {
         <span class="logo">🫘</span>
         <span class="brand-name">银豆豆计时</span>
       </div>
+      <el-input
+        v-model="search"
+        class="search-input"
+        placeholder="搜索事件名称或备注"
+        clearable
+      />
       <div class="actions">
-        <el-input
-          v-model="search"
-          placeholder="搜索事件名称或备注"
-          clearable
-          style="width: 230px"
-        />
         <el-popover v-if="isElectron" placement="bottom-end" :width="330" trigger="click">
           <template #reference>
             <el-button :type="widgetOn ? 'primary' : 'default'" plain round>
@@ -327,50 +301,11 @@ async function onRemove(ev: EventItem): Promise<void> {
             <div class="wp-hint">勾选要放上桌面的事件，改动即时生效</div>
           </div>
         </el-popover>
-        <el-popover placement="bottom-end" :width="240" trigger="click">
+        <el-popover v-if="isElectron" placement="bottom-end" :width="280" trigger="click">
           <template #reference>
             <el-button round>⚙ 设置</el-button>
           </template>
-          <div class="set-pop">
-            <div class="set-row">
-              <span>深色模式</span>
-              <el-switch :model-value="dark" @change="(v: string | number | boolean) => toggleTheme(Boolean(v))" />
-            </div>
-            <div class="set-row set-font">
-              <span>字体大小</span>
-              <el-radio-group
-                :model-value="fontScale"
-                size="small"
-                @change="(v: string | number | boolean) => pickFont(Number(v))"
-              >
-                <el-radio-button
-                  v-for="step in FONT_STEPS"
-                  :key="step.value"
-                  :value="step.value"
-                  :label="step.label"
-                />
-              </el-radio-group>
-            </div>
-            <div v-if="isElectron" class="set-row">
-              <span>开机自启</span>
-              <el-switch
-                :model-value="autoLaunch"
-                @change="(v: string | number | boolean) => toggleAutoLaunch(Boolean(v))"
-              />
-            </div>
-            <div class="set-row">
-              <span>备份</span>
-              <span>
-                <el-button size="small" @click="doExport">导出</el-button>
-                <el-button size="small" @click="doImport">导入</el-button>
-              </span>
-            </div>
-            <div class="set-tip">
-              导出：全部事件和图片存成一个文件<br />
-              导入：可选「合并」或「替换」
-            </div>
-            <div v-if="isElectron" class="set-tip">退出软件请用右下角托盘图标的「退出」</div>
-          </div>
+          <SettingsPanel @replay-guide="showGuide = true" />
         </el-popover>
         <el-button type="primary" round @click="openCreate">＋ 添加事件</el-button>
         <div v-if="isElectron" class="win-ctrls">
@@ -383,7 +318,7 @@ async function onRemove(ev: EventItem): Promise<void> {
       </div>
     </header>
 
-    <main class="list">
+    <main v-show="activeTab === 'home'" class="list">
       <EventCard
         v-for="ev in shown"
         :key="ev.id"
@@ -401,11 +336,42 @@ async function onRemove(ev: EventItem): Promise<void> {
         <div class="empty-bean">🫘</div>
         <p class="empty-title">{{ search ? '没有找到匹配的事件' : '还没有倒计时事件' }}</p>
         <p class="empty-sub">
-          {{ search ? '换个关键词试试' : '点右上角「添加事件」，开始记录你的重要日子' }}
+          {{ search ? '换个关键词试试' : '点底栏中间的 ＋ 添加事件，开始记录重要日子' }}
         </p>
         <el-button v-if="!search" type="primary" round @click="openCreate">添加第一个事件</el-button>
       </div>
     </main>
+
+    <!-- 手机端：设置页（由底部导航切换） -->
+    <section v-if="activeTab === 'settings'" class="settings-page">
+      <h2 class="settings-title">⚙ 设置</h2>
+      <div class="settings-card">
+        <SettingsPanel @replay-guide="showGuide = true" />
+      </div>
+    </section>
+
+    <!-- 手机端：底部导航（首页 / 添加 / 设置），电脑端自动隐藏 -->
+    <nav class="bottom-nav">
+      <button
+        class="nav-item"
+        :class="{ active: activeTab === 'home' }"
+        @click="activeTab = 'home'"
+      >
+        <span class="nav-icon">🏠</span>
+        <span class="nav-label">首页</span>
+      </button>
+      <button class="nav-add" title="添加事件" @click="openAddFromNav">＋</button>
+      <button
+        class="nav-item"
+        :class="{ active: activeTab === 'settings' }"
+        @click="activeTab = 'settings'"
+      >
+        <span class="nav-icon">⚙️</span>
+        <span class="nav-label">设置</span>
+      </button>
+    </nav>
+
+    <OnboardingGuide :show="showGuide" @finished="finishGuide" />
 
     <EventEditDialog v-model:show="dialogShow" :event="editing" />
 
@@ -518,6 +484,15 @@ async function onRemove(ev: EventItem): Promise<void> {
   gap: 12px;
 }
 
+/* 顶部搜索框（手机端也显示） */
+.search-input {
+  width: 230px;
+}
+
+.search-input :deep(.el-input__wrapper) {
+  -webkit-app-region: no-drag;
+}
+
 /* 事件卡片：自动多列排布，每张接近方形，图片卡片比例更好看 */
 .list {
   flex: 1;
@@ -531,31 +506,6 @@ async function onRemove(ev: EventItem): Promise<void> {
   max-width: 1120px;
   margin: 0 auto;
   box-sizing: border-box;
-}
-
-/* 「⚙ 设置」弹出面板 */
-.set-pop {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.set-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 13px;
-  color: #39424e;
-}
-
-.set-font :deep(.el-radio-button__inner) {
-  padding: 5px 10px;
-}
-
-.set-tip {
-  font-size: 11px;
-  color: #b0b9c4;
-  text-align: center;
 }
 
 /* 「🖥 小组件」弹出的选择清单 */
@@ -756,5 +706,145 @@ html.dark .arch-name {
   font-size: 13px;
   color: #8a94a2;
   margin-bottom: 8px;
+}
+
+/* —— 手机端底部导航 —— */
+.bottom-nav {
+  display: none; /* 电脑端不显示，窄屏时显示（见媒体查询） */
+}
+
+/* —— 手机端设置页 —— */
+.settings-page {
+  flex: 1;
+  overflow-y: auto;
+  padding: 22px 18px 90px;
+  max-width: 560px;
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.settings-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #39424e;
+  margin-bottom: 14px;
+}
+
+html.dark .settings-title {
+  color: #e5eaf1;
+}
+
+.settings-card {
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 20px;
+  padding: 18px 18px 12px;
+  box-shadow: 0 4px 14px rgba(96, 112, 138, 0.1);
+}
+
+html.dark .settings-card {
+  background: rgba(38, 43, 51, 0.8);
+}
+
+/* —— 窄屏（手机）适配：顶部只留搜索，底部导航出现 —— */
+@media (max-width: 640px) {
+  .topbar {
+    gap: 10px;
+    padding: 10px 14px;
+    padding-left: 14px;
+  }
+
+  .brand-name {
+    display: none; /* 手机上省空间，只留豆豆标志 */
+  }
+
+  .search-input {
+    flex: 1;
+    width: auto;
+  }
+
+  /* 电脑端按钮组（小组件/设置/添加/窗口控制）在手机上全部隐藏，功能移到底部导航 */
+  .actions {
+    display: none;
+  }
+
+  .page {
+    padding-bottom: 64px;
+  }
+
+  .bottom-nav {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 100;
+    height: calc(60px + env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
+    align-items: stretch;
+    justify-content: space-around;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 -4px 18px rgba(60, 74, 96, 0.12);
+  }
+
+  html.dark .bottom-nav {
+    background: rgba(30, 34, 41, 0.95);
+  }
+
+  .nav-item {
+    flex: 1;
+    border: none;
+    background: transparent;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    color: #8a94a2;
+    cursor: pointer;
+    font-size: 11px;
+  }
+
+  .nav-item.active {
+    color: #5d8fbd;
+  }
+
+  .nav-icon {
+    font-size: 21px;
+    line-height: 1;
+  }
+
+  .nav-label {
+    font-size: 11px;
+  }
+
+  /* 中间的 ＋ 按钮：凸起的圆 */
+  .nav-add {
+    width: 56px;
+    height: 56px;
+    margin-top: -22px;
+    border: none;
+    border-radius: 50%;
+    background: linear-gradient(145deg, #7db3e0, #5d90c4);
+    color: #ffffff;
+    font-size: 28px;
+    line-height: 1;
+    cursor: pointer;
+    align-self: flex-start;
+    box-shadow:
+      0 6px 16px rgba(93, 144, 196, 0.45),
+      0 0 0 5px rgba(255, 255, 255, 0.9);
+  }
+
+  html.dark .nav-add {
+    box-shadow:
+      0 6px 16px rgba(0, 0, 0, 0.5),
+      0 0 0 5px rgba(30, 34, 41, 0.95);
+  }
+
+  .nav-add:active {
+    transform: scale(0.94);
+  }
 }
 </style>
