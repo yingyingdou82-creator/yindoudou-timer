@@ -19,6 +19,9 @@
     <LinearLayout android:id="@+id/row0"
         android:layout_width="match_parent" android:layout_height="wrap_content"
         android:orientation="horizontal" android:layout_marginTop="6dp" android:gravity="center_vertical">
+        <TextView android:id="@+id/row0_icon"
+            android:layout_width="22dp" android:layout_height="wrap_content"
+            android:textSize="15sp" android:text="🎯" />
         <TextView android:id="@+id/row0_name"
             android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
             android:textSize="13sp" android:textColor="#39424E" android:maxLines="1"
@@ -32,6 +35,9 @@
     <LinearLayout android:id="@+id/row1"
         android:layout_width="match_parent" android:layout_height="wrap_content"
         android:orientation="horizontal" android:layout_marginTop="4dp" android:gravity="center_vertical">
+        <TextView android:id="@+id/row1_icon"
+            android:layout_width="22dp" android:layout_height="wrap_content"
+            android:textSize="15sp" android:text="🎯" />
         <TextView android:id="@+id/row1_name"
             android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
             android:textSize="13sp" android:textColor="#39424E" android:maxLines="1"
@@ -45,6 +51,9 @@
     <LinearLayout android:id="@+id/row2"
         android:layout_width="match_parent" android:layout_height="wrap_content"
         android:orientation="horizontal" android:layout_marginTop="4dp" android:gravity="center_vertical">
+        <TextView android:id="@+id/row2_icon"
+            android:layout_width="22dp" android:layout_height="wrap_content"
+            android:textSize="15sp" android:text="🎯" />
         <TextView android:id="@+id/row2_name"
             android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
             android:textSize="13sp" android:textColor="#39424E" android:maxLines="1"
@@ -58,6 +67,9 @@
     <LinearLayout android:id="@+id/row3"
         android:layout_width="match_parent" android:layout_height="wrap_content"
         android:orientation="horizontal" android:layout_marginTop="4dp" android:gravity="center_vertical">
+        <TextView android:id="@+id/row3_icon"
+            android:layout_width="22dp" android:layout_height="wrap_content"
+            android:textSize="15sp" android:text="🎯" />
         <TextView android:id="@+id/row3_name"
             android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
             android:textSize="13sp" android:textColor="#39424E" android:maxLines="1"
@@ -71,6 +83,9 @@
     <LinearLayout android:id="@+id/row4"
         android:layout_width="match_parent" android:layout_height="wrap_content"
         android:orientation="horizontal" android:layout_marginTop="4dp" android:gravity="center_vertical">
+        <TextView android:id="@+id/row4_icon"
+            android:layout_width="22dp" android:layout_height="wrap_content"
+            android:textSize="15sp" android:text="🎯" />
         <TextView android:id="@+id/row4_name"
             android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
             android:textSize="13sp" android:textColor="#39424E" android:maxLines="1"
@@ -84,6 +99,9 @@
     <LinearLayout android:id="@+id/row5"
         android:layout_width="match_parent" android:layout_height="wrap_content"
         android:orientation="horizontal" android:layout_marginTop="4dp" android:gravity="center_vertical">
+        <TextView android:id="@+id/row5_icon"
+            android:layout_width="22dp" android:layout_height="wrap_content"
+            android:textSize="15sp" android:text="🎯" />
         <TextView android:id="@+id/row5_name"
             android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
             android:textSize="13sp" android:textColor="#39424E" android:maxLines="1"
@@ -97,6 +115,9 @@
     <LinearLayout android:id="@+id/row6"
         android:layout_width="match_parent" android:layout_height="wrap_content"
         android:orientation="horizontal" android:layout_marginTop="4dp" android:gravity="center_vertical">
+        <TextView android:id="@+id/row6_icon"
+            android:layout_width="22dp" android:layout_height="wrap_content"
+            android:textSize="15sp" android:text="🎯" />
         <TextView android:id="@+id/row6_name"
             android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
             android:textSize="13sp" android:textColor="#39424E" android:maxLines="1"
@@ -110,6 +131,9 @@
     <LinearLayout android:id="@+id/row7"
         android:layout_width="match_parent" android:layout_height="wrap_content"
         android:orientation="horizontal" android:layout_marginTop="4dp" android:gravity="center_vertical">
+        <TextView android:id="@+id/row7_icon"
+            android:layout_width="22dp" android:layout_height="wrap_content"
+            android:textSize="15sp" android:text="🎯" />
         <TextView android:id="@+id/row7_name"
             android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
             android:textSize="13sp" android:textColor="#39424E" android:maxLines="1"
@@ -123,6 +147,9 @@
     <LinearLayout android:id="@+id/row8"
         android:layout_width="match_parent" android:layout_height="wrap_content"
         android:orientation="horizontal" android:layout_marginTop="4dp" android:gravity="center_vertical">
+        <TextView android:id="@+id/row8_icon"
+            android:layout_width="22dp" android:layout_height="wrap_content"
+            android:textSize="15sp" android:text="🎯" />
         <TextView android:id="@+id/row8_name"
             android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
             android:textSize="13sp" android:textColor="#39424E" android:maxLines="1"

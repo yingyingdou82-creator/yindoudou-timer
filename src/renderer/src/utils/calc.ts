@@ -1,4 +1,4 @@
-import type { EventItem } from '@shared/types'
+import type { AttendanceRecord, EventItem } from '@shared/types'
 import { isWorkdayDate } from '@shared/holidays'
 
 /**
@@ -84,7 +84,27 @@ function isWeekday(dayNo: number): boolean {
   return w >= 1 && w <= 5
 }
 
-function buildParts(ev: EventItem, fromNo: number, toNo: number): string {
+function actualWorkedDays(
+  attendance: AttendanceRecord[],
+  fromNo: number,
+  toNo: number
+): number {
+  const from = strOfDayNo(fromNo)
+  const to = strOfDayNo(toNo)
+  const dates = new Set(
+    attendance
+      .filter((record) => record.status === 'worked' && record.date > from && record.date <= to)
+      .map((record) => record.date)
+  )
+  return dates.size
+}
+
+function buildParts(
+  ev: EventItem,
+  fromNo: number,
+  toNo: number,
+  attendance: AttendanceRecord[]
+): string {
   switch (ev.countType) {
     case 'natural':
       return `${toNo - fromNo} 天`
@@ -98,6 +118,9 @@ function buildParts(ev: EventItem, fromNo: number, toNo: number): string {
     case 'year':
       return joinParts(decompose(dateOf(fromNo), dateOf(toNo)))
     case 'workday': {
+      if (ev.workdayMode === 'attendance') {
+        return `${actualWorkedDays(attendance, fromNo, toNo)} 个实际出勤日`
+      }
       // 打开"叠加法定节假日"后：放假日扣掉、补班日加回（见 shared/holidays.ts）
       let n = 0
       for (let d = fromNo + 1; d <= toNo; d++) {
@@ -135,7 +158,11 @@ function fmtMinutes(total: number): string {
 }
 
 /** 计算一条事件现在的展示结果（方向由日期自动判断） */
-export function computeDisplay(ev: EventItem, now: Date = new Date()): DisplayResult {
+export function computeDisplay(
+  ev: EventItem,
+  now: Date = new Date(),
+  attendance: AttendanceRecord[] = []
+): DisplayResult {
   const todayNo = dayNumber(todayStr(now))
   const eventNo = dayNumber(ev.date)
   const rawDays = eventNo - todayNo
@@ -148,7 +175,7 @@ export function computeDisplay(ev: EventItem, now: Date = new Date()): DisplayRe
     const endNo = dayNumber(ev.endDate)
     if (todayNo < eventNo) {
       return {
-        text: `距离开始还有 ${buildParts(ev, todayNo, eventNo)}`,
+        text: `距离开始还有 ${buildParts(ev, todayNo, eventNo, attendance)}`,
         isToday: false,
         rawDays
       }
@@ -162,7 +189,7 @@ export function computeDisplay(ev: EventItem, now: Date = new Date()): DisplayRe
     }
     if (todayNo < endNo) {
       return {
-        text: `距离截止还有 ${buildParts(ev, todayNo, endNo)}`,
+        text: `距离截止还有 ${buildParts(ev, todayNo, endNo, attendance)}`,
         isToday: false,
         rawDays: endNo - todayNo
       }
@@ -171,7 +198,7 @@ export function computeDisplay(ev: EventItem, now: Date = new Date()): DisplayRe
       return { text: '今天截止！', isToday: true, rawDays: 0 }
     }
     return {
-      text: `已结束 ${buildParts(ev, endNo, todayNo)}`,
+      text: `已结束 ${buildParts(ev, endNo, todayNo, attendance)}`,
       isToday: false,
       rawDays: endNo - todayNo
     }
@@ -191,9 +218,9 @@ export function computeDisplay(ev: EventItem, now: Date = new Date()): DisplayRe
   if (rawDays > 0) {
     // 未来日期：倒计时（从今天数到目标日）
     const from = todayNo + includeOffset
-    return { text: `还有 ${buildParts(ev, from, eventNo)}`, isToday: false, rawDays }
+    return { text: `还有 ${buildParts(ev, from, eventNo, attendance)}`, isToday: false, rawDays }
   }
   // 过去日期：正计时（从开始日数到今天）
   const from = eventNo + includeOffset
-  return { text: `已经 ${buildParts(ev, from, todayNo)}`, isToday: false, rawDays }
+  return { text: `已经 ${buildParts(ev, from, todayNo, attendance)}`, isToday: false, rawDays }
 }

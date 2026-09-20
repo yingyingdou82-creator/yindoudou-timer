@@ -98,7 +98,7 @@ function next(): void {
 
         <div class="guide-btns">
           <el-button text @click="emit('finished')">跳过</el-button>
-          <el-button type="primary" round @click="next">
+          <el-button type="primary" @click="next">
             {{ isLast ? '开始使用' : '下一步' }}
           </el-button>
         </div>
@@ -123,7 +123,7 @@ function next(): void {
   width: 100%;
   max-width: 360px;
   background: #ffffff;
-  border-radius: 26px;
+  border-radius: 8px;
   padding: 30px 26px 22px;
   text-align: center;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
@@ -142,11 +142,11 @@ html.dark .guide-card {
   justify-content: center;
   font-size: 44px;
   border-radius: 50%;
-  background: linear-gradient(145deg, #f0f4f9, #dfe6ee);
+  background: #edf2f6;
 }
 
 html.dark .guide-icon {
-  background: linear-gradient(145deg, #323943, #22262d);
+  background: #323b46;
 }
 
 .guide-title {

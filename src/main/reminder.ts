@@ -1,4 +1,6 @@
 import { app, BrowserWindow, Notification } from 'electron'
+import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import type { EventItem } from '../shared/types'
 import { listEvents } from './store'
 
@@ -12,8 +14,38 @@ const CHECK_INTERVAL_MS = 30_000
 const GRACE_MS = 10 * 60_000
 
 let timer: ReturnType<typeof setInterval> | null = null
-// 已发过通知的事件 id（本次运行内不重复发）
-const fired = new Set<string>()
+
+const FIRED_FILE = (): string => join(app.getPath('userData'), 'reminders-fired.json')
+const KEEP_MS = 90 * 24 * 60 * 60_000
+
+function reminderKey(ev: EventItem): string {
+  return `${ev.id}|${ev.date}|${ev.time}|${ev.remindMinutes}`
+}
+
+function readFired(): Record<string, number> {
+  try {
+    if (!existsSync(FIRED_FILE())) return {}
+    const parsed = JSON.parse(readFileSync(FIRED_FILE(), 'utf-8')) as Record<string, unknown>
+    const out: Record<string, number> = {}
+    for (const [key, value] of Object.entries(parsed)) {
+      if (typeof value === 'number') out[key] = value
+    }
+    return out
+  } catch {
+    return {}
+  }
+}
+
+function writeFired(fired: Record<string, number>, now: number): void {
+  const kept: Record<string, number> = {}
+  for (const [key, value] of Object.entries(fired)) {
+    if (now - value <= KEEP_MS) kept[key] = value
+  }
+  const file = FIRED_FILE()
+  const tmp = `${file}.tmp`
+  writeFileSync(tmp, JSON.stringify(kept), 'utf-8')
+  renameSync(tmp, file)
+}
 
 function notify(ev: EventItem, getWindow: () => BrowserWindow | null): void {
   if (!Notification.isSupported()) return
@@ -40,6 +72,8 @@ function formatAhead(mins: number): string {
 
 function checkOnce(getWindow: () => BrowserWindow | null): void {
   const now = Date.now()
+  const fired = readFired()
+  let changed = false
   for (const ev of listEvents()) {
     if (!ev.time || !ev.remindMinutes || ev.archived) continue
     // 事件的具体时刻（本地时间）
@@ -47,11 +81,14 @@ function checkOnce(getWindow: () => BrowserWindow | null): void {
     if (Number.isNaN(startMs)) continue
     const triggerMs = startMs - ev.remindMinutes * 60_000
     const late = now - triggerMs
-    if (late >= 0 && late <= GRACE_MS && !fired.has(ev.id)) {
-      fired.add(ev.id)
+    const key = reminderKey(ev)
+    if (late >= 0 && late <= GRACE_MS && !fired[key]) {
+      fired[key] = now
+      changed = true
       notify(ev, getWindow)
     }
   }
+  if (changed) writeFired(fired, now)
 }
 
 export function startReminderScheduler(getMainWindow: () => BrowserWindow | null): void {

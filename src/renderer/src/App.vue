@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Calendar, House, Plus, Search, Setting } from '@element-plus/icons-vue'
+import { Capacitor, registerPlugin } from '@capacitor/core'
 import type { EventItem } from '@shared/types'
 import { useEvents } from './composables/useEvents'
+import { useAttendance } from './composables/useAttendance'
 import { useImages } from './composables/useImages'
 import { isElectron, platformApi } from './platform'
 import { scheduleMobileReminders } from './platform/mobileReminders'
@@ -11,8 +14,11 @@ import EventCard from './components/EventCard.vue'
 import EventEditDialog from './components/EventEditDialog.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
 import OnboardingGuide from './components/OnboardingGuide.vue'
+import AttendancePanel from './components/AttendancePanel.vue'
+import appIconUrl from './assets/app-icon.png'
 
 const { events, load, remove, update } = useEvents()
+const { attendanceRecords, loadAttendance } = useAttendance()
 const { clearAll: clearImageCache } = useImages()
 const search = ref('')
 const dialogShow = ref(false)
@@ -35,8 +41,8 @@ function applyFont(scale: number): void {
   document.documentElement.style.zoom = String(scale)
 }
 
-// 手机端底部导航：首页 / 添加 / 设置
-const activeTab = ref<'home' | 'settings'>('home')
+// 手机端底部导航：首页 / 出勤打卡 / 设置；添加事件放在顶部品牌行右侧
+const activeTab = ref<'home' | 'attendance' | 'settings'>('home')
 
 // 新手指引（第一次打开时展示）
 const showGuide = ref(false)
@@ -50,7 +56,7 @@ function finishGuide(): void {
 const showWidgetPicker = ref(false)
 
 onMounted(() => {
-  void load()
+  void Promise.all([load(), loadAttendance()])
     .then(() => {
       syncAndroidWidget()
       void scheduleMobileReminders(events.value)
@@ -61,7 +67,7 @@ onMounted(() => {
   // 数据在别处（比如小组件上）变化时，列表自动刷新
   unsubChanged = platformApi.onChanged(() => {
     clearImageCache() // 图片可能变了（如导入备份），重新读取
-    void load().then(() => {
+    void Promise.all([load(), loadAttendance()]).then(() => {
       syncAndroidWidget()
       void scheduleMobileReminders(events.value)
     })
@@ -85,17 +91,15 @@ onMounted(() => {
 })
 
 function checkWidgetLaunch(): void {
-  if (isElectron) return
-  try {
-    const cap = (window as unknown as WidgetCapacitor).Capacitor
-    void cap?.Plugins?.WidgetBridge?.getLaunchReason().then((r) => {
-      if (r?.reason === 'widget') {
-        showWidgetPicker.value = true
-      }
+  if (!hasNativeAndroidWidgetBridge()) return
+  void nativeWidgetBridge
+    .getLaunchReason()
+    .then((r) => {
+      if (r.reason === 'widget') showWidgetPicker.value = true
     })
-  } catch {
-    // 不影响主流程
-  }
+    .catch(() => {
+      // 小组件桥接暂不可用时不影响主流程
+    })
 }
 
 function onVisibilityForWidget(): void {
@@ -151,50 +155,71 @@ function openAddFromNav(): void {
 }
 
 // —— 安卓桌面小组件数据同步（只在安卓 App 里生效，网页/电脑版自动跳过） ——
-interface WidgetCapacitor {
-  Capacitor?: {
-    isNativePlatform?: () => boolean
-    Plugins?: {
-      WidgetBridge?: {
-        sync: (opts: { data: string }) => Promise<unknown>
-        getLaunchReason: () => Promise<{ reason: string }>
-        requestPin?: () => Promise<{ ok: boolean }>
-      }
-    }
-  }
+interface WidgetBridgePlugin {
+  sync(opts: { data: string; attendance: string }): Promise<{ ok: boolean }>
+  getLaunchReason(): Promise<{ reason: string }>
+  requestPin(): Promise<{ ok: boolean }>
+  getStatus(): Promise<{ count: number; canPin: boolean }>
+}
+
+// 按 Capacitor 官方方式注册代理，避免依赖 window.Capacitor.Plugins 的实现细节。
+const nativeWidgetBridge = registerPlugin<WidgetBridgePlugin>('WidgetBridge')
+
+function hasNativeAndroidWidgetBridge(): boolean {
+  return !isElectron && Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android'
 }
 
 /** 请求把小组件"钉"到桌面（系统弹"添加到主屏幕"确认框，安卓专用） */
-function requestPinWidget(): void {
-  if (isElectron) return
+async function requestPinWidget(): Promise<void> {
+  if (!hasNativeAndroidWidgetBridge()) return
   try {
-    const cap = (window as unknown as WidgetCapacitor).Capacitor
-    void cap?.Plugins?.WidgetBridge?.requestPin?.().catch(() => {
-      ElMessage.info('这款桌面不支持一键添加，请长按桌面空白处 → 小组件 → 手动添加')
-    })
-  } catch {
-    // 不影响主流程
+    const status = await nativeWidgetBridge.getStatus()
+    if (status && status.count > 0) {
+      syncAndroidWidget()
+      ElMessage.success('已同步到桌面上的 ' + status.count + ' 个小组件')
+      return
+    }
+    await nativeWidgetBridge.requestPin()
+    ElMessage.info('请在系统弹窗中确认添加；添加后已选事件会自动显示')
+  } catch (err) {
+    ElMessage.info(
+      err instanceof Error
+        ? err.message
+        : '这款桌面不支持一键添加，请长按桌面空白处 → 小组件 → 手动添加'
+    )
   }
 }
 
 function syncAndroidWidget(): void {
-  try {
-    const cap = (window as unknown as WidgetCapacitor).Capacitor
-    if (!cap?.isNativePlatform?.()) return
-    const bridge = cap.Plugins?.WidgetBridge
-    if (!bridge) return
-    const rows = events.value
-      .filter((ev) => ev.onDesktop && !ev.archived)
-      .sort((a, b) => {
-        if (a.pinned !== b.pinned) return a.pinned ? -1 : 1
-        return Math.abs(computeDisplay(a).rawDays) - Math.abs(computeDisplay(b).rawDays)
-      })
-      .slice(0, 5)
-      .map((ev) => ({ n: ev.name, d: ev.date, e: ev.endDate ?? '' }))
-    void bridge.sync({ data: JSON.stringify(rows) })
-  } catch {
-    // 同步失败不影响主流程
-  }
+  if (!hasNativeAndroidWidgetBridge()) return
+  const rows = events.value
+    .filter((ev) => ev.onDesktop && !ev.archived)
+    .sort((a, b) => {
+      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1
+      return Math.abs(computeDisplay(a).rawDays) - Math.abs(computeDisplay(b).rawDays)
+    })
+    .slice(0, 9)
+    .map((ev) => ({
+      id: ev.id,
+      n: ev.name,
+      d: ev.date,
+      e: ev.endDate ?? '',
+      t: ev.time ?? '',
+      ct: ev.countType,
+      wh: ev.workdayHoliday,
+      wm: ev.workdayMode,
+      inc: ev.includeStartDay,
+      i: ev.icon
+    }))
+  const attendance = attendanceRecords.value.map((record) => ({
+    d: record.date,
+    s: record.status
+  }))
+  void nativeWidgetBridge
+    .sync({ data: JSON.stringify(rows), attendance: JSON.stringify(attendance) })
+    .catch(() => {
+      // 主页面照常使用；设置页仍可通过手动添加引导用户处理桌面兼容性。
+    })
 }
 
 async function toggleWidgetWin(): Promise<void> {
@@ -217,14 +242,14 @@ const pickerRows = computed(() => {
 async function setOnDesktop(ev: EventItem, val: boolean): Promise<void> {
   try {
     await update(ev.id, { ...ev, onDesktop: val })
+    syncAndroidWidget()
   } catch (err) {
     ElMessage.error('设置失败：' + (err instanceof Error ? err.message : String(err)))
     return
   }
   // 安卓：第一次勾上桌面事件时，请求把小组件钉到桌面（系统弹确认框）
-  if (!isElectron && val && !localStorage.getItem('ydd_pin_requested')) {
-    localStorage.setItem('ydd_pin_requested', '1')
-    requestPinWidget()
+  if (!isElectron && val) {
+    void requestPinWidget()
   }
 }
 
@@ -311,19 +336,47 @@ async function onRemove(ev: EventItem): Promise<void> {
   <div class="page" :class="{ 'is-mac': isMac, 'is-mobile': !isElectron }">
     <header class="topbar" @dblclick="onTopbarDblclick">
       <div class="brand">
-        <span class="logo">🫘</span>
-        <span class="brand-name">银豆豆计时</span>
+        <span class="brand-main">
+          <img class="logo" :src="appIconUrl" alt="银豆豆计时" />
+          <span class="brand-name">银豆豆计时</span>
+        </span>
+        <button class="mobile-create" title="添加事件" @click="openAddFromNav">
+          <el-icon><Plus /></el-icon>
+        </button>
       </div>
       <el-input
+        v-show="activeTab === 'home'"
         v-model="search"
         class="search-input"
         placeholder="搜索事件名称或备注"
         clearable
-      />
+      >
+        <template #prefix>
+          <el-icon><Search /></el-icon>
+        </template>
+      </el-input>
       <div class="actions">
+        <el-button
+          v-if="isElectron"
+          :type="activeTab === 'home' ? 'primary' : 'default'"
+          plain
+          @click="activeTab = 'home'"
+        >
+          <el-icon><House /></el-icon>
+          <span>事件</span>
+        </el-button>
+        <el-button
+          v-if="isElectron"
+          :type="activeTab === 'attendance' ? 'primary' : 'default'"
+          plain
+          @click="activeTab = 'attendance'"
+        >
+          <el-icon><Calendar /></el-icon>
+          <span>出勤打卡</span>
+        </el-button>
         <el-popover v-if="isElectron" placement="bottom-end" :width="330" trigger="click">
           <template #reference>
-            <el-button :type="widgetOn ? 'primary' : 'default'" plain round>
+            <el-button :type="widgetOn ? 'primary' : 'default'" plain>
               🖥 小组件
             </el-button>
           </template>
@@ -354,11 +407,14 @@ async function onRemove(ev: EventItem): Promise<void> {
         </el-popover>
         <el-popover v-if="isElectron" placement="bottom-end" :width="280" trigger="click">
           <template #reference>
-            <el-button round>⚙ 设置</el-button>
+            <el-button>⚙ 设置</el-button>
           </template>
           <SettingsPanel @replay-guide="showGuide = true" />
         </el-popover>
-        <el-button type="primary" round @click="openCreate">＋ 添加事件</el-button>
+        <el-button type="primary" @click="openAddFromNav">
+          <el-icon><Plus /></el-icon>
+          <span>添加事件</span>
+        </el-button>
         <div v-if="isElectron" class="win-ctrls">
           <button class="wc" title="最小化" @click="winMin">–</button>
           <button class="wc" :title="maximized ? '还原' : '最大化'" @click="winMaxToggle">
@@ -370,6 +426,13 @@ async function onRemove(ev: EventItem): Promise<void> {
     </header>
 
     <main v-show="activeTab === 'home'" class="list">
+      <div class="list-heading">
+        <div>
+          <p>YOUR IMPORTANT DAYS</p>
+          <h1>重要日子</h1>
+        </div>
+        <span>{{ shown.length }} 个事件</span>
+      </div>
       <EventCard
         v-for="ev in shown"
         :key="ev.id"
@@ -384,14 +447,18 @@ async function onRemove(ev: EventItem): Promise<void> {
       </div>
 
       <div v-if="shown.length === 0" class="empty">
-        <div class="empty-bean">🫘</div>
+        <div class="empty-bean">
+          <img :src="appIconUrl" alt="" />
+        </div>
         <p class="empty-title">{{ search ? '没有找到匹配的事件' : '还没有倒计时事件' }}</p>
         <p class="empty-sub">
-          {{ search ? '换个关键词试试' : '点底栏中间的 ＋ 添加事件，开始记录重要日子' }}
+          {{ search ? '换个关键词试试' : '点右上角添加事件，开始记录重要日子' }}
         </p>
-        <el-button v-if="!search" type="primary" round @click="openCreate">添加第一个事件</el-button>
+        <el-button v-if="!search" type="primary" @click="openCreate">添加第一个事件</el-button>
       </div>
     </main>
+
+    <AttendancePanel v-if="activeTab === 'attendance'" />
 
     <!-- 手机端：设置页（由底部导航切换） -->
     <section v-if="activeTab === 'settings'" class="settings-page">
@@ -436,30 +503,37 @@ async function onRemove(ev: EventItem): Promise<void> {
               还没有事件，先添加一个吧
             </div>
           </div>
-          <el-button type="primary" round class="wp-sheet-done" @click="showWidgetPicker = false">
+          <el-button type="primary" class="wp-sheet-done" @click="showWidgetPicker = false">
             完成
           </el-button>
         </div>
       </div>
     </transition>
 
-    <!-- 手机端：底部导航（首页 / 添加 / 设置），电脑端自动隐藏 -->
+    <!-- 手机端：底部导航（首页 / 打卡 / 设置），电脑端自动隐藏 -->
     <nav class="bottom-nav">
       <button
         class="nav-item"
         :class="{ active: activeTab === 'home' }"
         @click="activeTab = 'home'"
       >
-        <span class="nav-icon">🏠</span>
+        <el-icon class="nav-icon"><House /></el-icon>
         <span class="nav-label">首页</span>
       </button>
-      <button class="nav-add" title="添加事件" @click="openAddFromNav">＋</button>
+      <button
+        class="nav-item"
+        :class="{ active: activeTab === 'attendance' }"
+        @click="activeTab = 'attendance'"
+      >
+        <el-icon class="nav-icon"><Calendar /></el-icon>
+        <span class="nav-label">打卡</span>
+      </button>
       <button
         class="nav-item"
         :class="{ active: activeTab === 'settings' }"
         @click="activeTab = 'settings'"
       >
-        <span class="nav-icon">⚙️</span>
+        <el-icon class="nav-icon"><Setting /></el-icon>
         <span class="nav-label">设置</span>
       </button>
     </nav>
@@ -489,7 +563,7 @@ async function onRemove(ev: EventItem): Promise<void> {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(165deg, #eef1f6 0%, #e3e9f1 60%, #dae1eb 100%);
+  background: #f6f7f9;
 }
 
 .topbar {
@@ -497,10 +571,11 @@ async function onRemove(ev: EventItem): Promise<void> {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 14px 14px 26px;
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(8px);
-  box-shadow: 0 2px 10px rgba(96, 112, 138, 0.08);
+  min-height: 66px;
+  padding: 13px 18px 13px 26px;
+  background: rgba(248, 249, 251, 0.9);
+  border-bottom: 1px solid rgba(94, 105, 120, 0.12);
+  backdrop-filter: blur(18px);
 }
 
 /* 顶部的按钮和输入区不拖动，保证能点 */
@@ -525,7 +600,7 @@ async function onRemove(ev: EventItem): Promise<void> {
   width: 38px;
   height: 30px;
   border: none;
-  border-radius: 9px;
+  border-radius: 6px;
   background: transparent;
   color: #6b7684;
   font-size: 13px;
@@ -549,56 +624,123 @@ async function onRemove(ev: EventItem): Promise<void> {
 .brand {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
+  min-width: 0;
+}
+
+.brand-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
 
 .logo {
   width: 38px;
   height: 38px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 22px;
-  border-radius: 50%;
-  background: linear-gradient(145deg, #ffffff, #d7dee8);
-  box-shadow: inset 0 -3px 8px rgba(120, 134, 156, 0.25);
+  border-radius: 8px;
+  object-fit: cover;
+  background: #ffffff;
+  box-shadow:
+    inset 0 -3px 8px rgba(120, 134, 156, 0.18),
+    0 2px 8px rgba(96, 112, 138, 0.12);
+  flex-shrink: 0;
 }
 
 .brand-name {
   font-size: 19px;
   font-weight: 700;
-  letter-spacing: 1px;
+  letter-spacing: 0;
   color: #39424e;
+  white-space: nowrap;
+}
+
+.mobile-create {
+  -webkit-app-region: no-drag;
+  display: none;
+  width: 38px;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(76, 88, 104, 0.14);
+  border-radius: 50%;
+  background: #ffffff;
+  color: #2f3a46;
+  box-shadow: 0 7px 18px rgba(47, 58, 70, 0.1);
+  cursor: pointer;
+}
+
+.mobile-create:active {
+  transform: scale(0.96);
 }
 
 .actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+}
+
+.actions :deep(.el-button) {
+  gap: 6px;
+  border-radius: 6px;
 }
 
 /* 顶部搜索框（手机端也显示） */
 .search-input {
-  width: 230px;
+  width: 280px;
 }
 
 .search-input :deep(.el-input__wrapper) {
   -webkit-app-region: no-drag;
+  min-height: 36px;
+  border: 1px solid rgba(97, 110, 128, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 1px 2px rgba(41, 51, 63, 0.03);
 }
 
 /* 事件卡片：自动多列排布，每张接近方形，图片卡片比例更好看 */
 .list {
   flex: 1;
   overflow-y: auto;
-  padding: 26px;
+  padding: 30px 32px 36px;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
   gap: 14px;
   align-content: start;
   width: 100%;
-  max-width: 1120px;
+  max-width: 1180px;
   margin: 0 auto;
   box-sizing: border-box;
+}
+
+.list-heading {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 0 2px 6px;
+}
+
+.list-heading p {
+  margin: 0 0 5px;
+  color: #7c8794;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.list-heading h1 {
+  margin: 0;
+  color: #222b36;
+  font-size: 25px;
+  line-height: 1.2;
+}
+
+.list-heading > span {
+  color: #89939f;
+  font-size: 12px;
 }
 
 /* 「🖥 小组件」弹出的选择清单 */
@@ -647,7 +789,7 @@ async function onRemove(ev: EventItem): Promise<void> {
   align-items: center;
   gap: 8px;
   padding: 4px 6px;
-  border-radius: 10px;
+  border-radius: 6px;
   cursor: pointer;
 }
 
@@ -694,9 +836,9 @@ async function onRemove(ev: EventItem): Promise<void> {
 .arch-entry {
   grid-column: 1 / -1;
   justify-self: center;
-  padding: 10px 26px;
+  padding: 9px 14px;
   border: 1.5px dashed #c3ccd8;
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: 13px;
   color: #8a94a2;
   cursor: pointer;
@@ -781,12 +923,21 @@ html.dark .arch-name {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 64px;
-  border-radius: 50%;
-  background: linear-gradient(145deg, #ffffff, #d7dee8);
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid #dfe5eb;
   box-shadow:
     inset 0 -5px 12px rgba(120, 134, 156, 0.25),
     0 10px 24px rgba(96, 112, 138, 0.15);
+  overflow: hidden;
+}
+
+.empty-bean img {
+  width: 92px;
+  height: 92px;
+  display: block;
+  border-radius: 7px;
+  object-fit: cover;
 }
 
 .empty-title {
@@ -806,42 +957,72 @@ html.dark .arch-name {
 .bottom-nav {
   display: none;
   position: fixed;
-  left: 0;
-  right: 0;
+  left: 50%;
+  right: auto;
   bottom: 0;
   z-index: 100;
-  height: calc(60px + env(safe-area-inset-bottom));
-  padding-bottom: env(safe-area-inset-bottom);
-  align-items: stretch;
-  justify-content: space-around;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 -4px 18px rgba(60, 74, 96, 0.12);
+  width: min(100%, 560px);
+  height: calc(66px + env(safe-area-inset-bottom));
+  padding: 6px 14px calc(6px + env(safe-area-inset-bottom));
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transform: translateX(-50%);
+  background: rgba(248, 249, 251, 0.92);
+  backdrop-filter: blur(18px);
+  border-top: 1px solid rgba(94, 105, 120, 0.12);
+  border-radius: 8px 8px 0 0;
+  box-shadow: 0 -12px 30px rgba(37, 47, 59, 0.08);
 }
 
 html.dark .bottom-nav {
-  background: rgba(30, 34, 41, 0.95);
+  background: rgba(30, 34, 41, 0.94);
+}
+
+html.dark .mobile-create {
+  background: #2b323c;
+  border-color: #3d4854;
+  color: #e5eaf1;
+  box-shadow: 0 7px 18px rgba(0, 0, 0, 0.24);
 }
 
 .nav-item {
   flex: 1;
+  height: 48px;
   border: none;
+  border-radius: 8px;
   background: transparent;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: 3px;
   color: #8a94a2;
   cursor: pointer;
+  transition:
+    background 0.16s,
+    color 0.16s,
+    box-shadow 0.16s;
 }
 
 .nav-item.active {
-  color: #5d8fbd;
+  background: rgba(255, 255, 255, 0.86);
+  color: #24303c;
+  box-shadow:
+    0 1px 2px rgba(35, 46, 58, 0.05),
+    0 7px 18px rgba(35, 46, 58, 0.08);
+}
+
+html.dark .nav-item.active {
+  background: rgba(48, 56, 67, 0.9);
+  color: #edf1f6;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.18),
+    0 7px 18px rgba(0, 0, 0, 0.24);
 }
 
 .nav-icon {
-  font-size: 21px;
+  font-size: 20px;
   line-height: 1;
 }
 
@@ -849,37 +1030,50 @@ html.dark .bottom-nav {
   font-size: 11px;
 }
 
-/* 中间的 ＋ 按钮：凸起的圆 */
-.nav-add {
-  width: 56px;
-  height: 56px;
-  margin-top: -22px;
-  border: none;
-  border-radius: 50%;
-  background: linear-gradient(145deg, #7db3e0, #5d90c4);
-  color: #ffffff;
-  font-size: 28px;
-  line-height: 1;
-  cursor: pointer;
-  align-self: flex-start;
-  box-shadow:
-    0 6px 16px rgba(93, 144, 196, 0.45),
-    0 0 0 5px rgba(255, 255, 255, 0.9);
-}
-
-html.dark .nav-add {
-  box-shadow:
-    0 6px 16px rgba(0, 0, 0, 0.5),
-    0 0 0 5px rgba(30, 34, 41, 0.95);
-}
-
-.nav-add:active {
-  transform: scale(0.94);
-}
-
 /* —— 手机/安卓环境（不管屏幕多宽都用手机版式：底部导航常驻） —— */
 .page.is-mobile .actions {
   display: none;
+}
+
+.page.is-mobile .topbar {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 12px;
+  padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
+  align-items: stretch;
+  justify-content: center;
+}
+
+.page.is-mobile .brand {
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  justify-content: space-between;
+}
+
+.page.is-mobile .brand-name {
+  display: inline;
+  font-size: 17px;
+}
+
+.page.is-mobile .mobile-create {
+  display: inline-flex;
+}
+
+.page.is-mobile .search-input {
+  order: 3;
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  flex: 0 0 auto;
+}
+
+.page.is-mobile .list {
+  grid-template-columns: minmax(0, 1fr);
+  padding: 16px;
+  gap: 12px;
+  max-width: 560px;
+  padding-bottom: 96px;
 }
 
 .page.is-mobile .bottom-nav {
@@ -887,7 +1081,7 @@ html.dark .nav-add {
 }
 
 .page.is-mobile .settings-page {
-  padding-bottom: 90px;
+  padding-bottom: 96px;
 }
 
 /* —— 桌面小组件选择弹层（圆圈打勾） —— */
@@ -905,7 +1099,7 @@ html.dark .nav-add {
   max-width: 560px;
   margin: 0 auto;
   background: #ffffff;
-  border-radius: 26px 26px 0 0;
+  border-radius: 14px 14px 0 0;
   padding: 10px 20px calc(20px + env(safe-area-inset-bottom));
 }
 
@@ -961,7 +1155,7 @@ html.dark .wp-sheet-title {
   align-items: center;
   gap: 12px;
   padding: 11px 8px;
-  border-radius: 14px;
+  border-radius: 7px;
   cursor: pointer;
 }
 
@@ -1074,30 +1268,48 @@ html.dark .settings-title {
 
 .settings-card {
   background: rgba(255, 255, 255, 0.8);
-  border-radius: 20px;
+  border: 1px solid #e1e5ea;
+  border-radius: 8px;
   padding: 18px 18px 12px;
-  box-shadow: 0 4px 14px rgba(96, 112, 138, 0.1);
+  box-shadow: 0 2px 8px rgba(72, 86, 103, 0.05);
 }
 
 html.dark .settings-card {
   background: rgba(38, 43, 51, 0.8);
 }
 
-/* —— 窄屏（手机）适配：顶部只留搜索，底部导航出现 —— */
+/* —— 窄屏适配：顶部品牌 + 添加，搜索独占一行，底部导航出现 —— */
 @media (max-width: 640px) {
   .topbar {
-    gap: 10px;
-    padding: 10px 14px;
-    padding-left: 14px;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: 12px;
+    padding: 12px 16px;
+    align-items: stretch;
+  }
+
+  .brand {
+    width: 100%;
+    max-width: 560px;
+    margin: 0 auto;
+    justify-content: space-between;
   }
 
   .brand-name {
-    display: none; /* 手机上省空间，只留豆豆标志 */
+    display: inline;
+    font-size: 17px;
+  }
+
+  .mobile-create {
+    display: inline-flex;
   }
 
   .search-input {
-    flex: 1;
-    width: auto;
+    order: 3;
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: 560px;
+    margin: 0 auto;
   }
 
   /* 电脑端按钮组在窄窗口也收进底部导航（桌面窄窗口场景） */
@@ -1110,7 +1322,14 @@ html.dark .settings-card {
   }
 
   .page {
-    padding-bottom: 64px;
+    padding-bottom: 72px;
+  }
+
+  .list {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 16px;
+    gap: 12px;
+    padding-bottom: 96px;
   }
 }
 </style>

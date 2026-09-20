@@ -130,6 +130,7 @@ function blankDraft(): EventDraft {
     remindMinutes: 0,
     countType: 'natural',
     workdayHoliday: false,
+    workdayMode: 'calendar',
     includeStartDay: false,
     color: DEFAULT_COLOR,
     icon: DEFAULT_ICON,
@@ -191,6 +192,7 @@ function cleanDraft(): EventDraft {
     remindMinutes: (draft.time ?? '').trim() ? draft.remindMinutes : 0,
     countType: draft.countType,
     workdayHoliday: draft.workdayHoliday,
+    workdayMode: draft.workdayMode,
     includeStartDay: draft.includeStartDay,
     color: draft.color,
     icon: draft.icon,
@@ -323,7 +325,17 @@ async function onSave(): Promise<void> {
         </el-radio-group>
       </el-form-item>
 
-      <el-form-item v-if="draft.countType === 'workday'">
+      <el-form-item v-if="draft.countType === 'workday'" label="工作日来源">
+        <el-radio-group v-model="draft.workdayMode">
+          <el-radio-button value="calendar">系统工作日</el-radio-button>
+          <el-radio-button value="attendance">实际打卡</el-radio-button>
+        </el-radio-group>
+        <div class="form-tip">
+          实际打卡只统计您在「出勤打卡」里标为上班的日期，周末上班和工作日请假都能准确反映。
+        </div>
+      </el-form-item>
+
+      <el-form-item v-if="draft.countType === 'workday' && draft.workdayMode === 'calendar'">
         <span class="inline-option">
           <el-switch v-model="draft.workdayHoliday" />
           <span class="form-tip">叠加法定节假日：已内置 2025–2026 年国家安排（每年 11 月公布次年安排后更新）</span>
@@ -459,7 +471,7 @@ async function onSave(): Promise<void> {
   flex-wrap: wrap;
   padding: 8px 10px;
   margin: -8px -10px;
-  border-radius: 12px;
+  border-radius: 8px;
   border: 1.5px dashed transparent;
   transition:
     border-color 0.15s,
@@ -481,7 +493,7 @@ async function onSave(): Promise<void> {
   position: relative;
   width: 132px;
   height: 74px;
-  border-radius: 12px;
+  border-radius: 8px;
   background-size: cover;
   background-position: center;
   box-shadow: 0 2px 8px rgba(96, 112, 138, 0.2);
@@ -533,7 +545,7 @@ async function onSave(): Promise<void> {
   align-items: center;
   justify-content: center;
   font-size: 20px;
-  border-radius: 12px;
+  border-radius: 6px;
   background: #f2f4f8;
   cursor: pointer;
   border: 2px solid transparent;
@@ -554,8 +566,8 @@ async function onSave(): Promise<void> {
 .preview {
   margin-top: 4px;
   padding: 10px 14px;
-  border-radius: 14px;
-  background: linear-gradient(145deg, #f4f7fb, #e9eef5);
+  border-radius: 8px;
+  background: #eff3f6;
   font-size: 14px;
   font-weight: 600;
   color: #3d4653;

@@ -11,15 +11,16 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        // 注册"界面 → 桌面小组件"的数据桥
+        // 必须在 BridgeActivity 初始化前注册，否则 WebView 侧拿不到自定义插件。
         registerPlugin(WidgetBridge.class);
+        super.onCreate(savedInstanceState);
         checkIntent(getIntent());
     }
 
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
+        setIntent(intent);
         checkIntent(intent);
     }
 

@@ -4,6 +4,7 @@ import type { EventItem } from '@shared/types'
 import { computeDisplay } from '../utils/calc'
 import { colorOf } from '../constants/ui'
 import { useImages } from '../composables/useImages'
+import { useAttendance } from '../composables/useAttendance'
 import { platformApi } from '../platform'
 
 /**
@@ -24,6 +25,7 @@ const opacityIndex = ref(0)
 const fontScale = ref(1)
 
 const { clearAll: clearImageCache } = useImages()
+const { attendanceRecords, loadAttendance } = useAttendance()
 
 let nowTimer: number | undefined
 let unsubChanged: (() => void) | undefined
@@ -33,6 +35,7 @@ let unsubFont: (() => void) | undefined
 async function load(): Promise<void> {
   const all = await platformApi.events.list()
   events.value = all.filter((ev) => ev.onDesktop && !ev.archived)
+  await loadAttendance()
 }
 
 /** 排序：置顶最前，离今天越近越靠前（和主窗口一致） */
@@ -40,8 +43,8 @@ const rows = computed(() => {
   return [...events.value].sort((a, b) => {
     if (a.pinned !== b.pinned) return a.pinned ? -1 : 1
     return (
-      Math.abs(computeDisplay(a, now.value).rawDays) -
-      Math.abs(computeDisplay(b, now.value).rawDays)
+      Math.abs(computeDisplay(a, now.value, attendanceRecords.value).rawDays) -
+      Math.abs(computeDisplay(b, now.value, attendanceRecords.value).rawDays)
     )
   })
 })
@@ -153,8 +156,8 @@ async function removeRow(ev: EventItem): Promise<void> {
         <span class="ricon">{{ ev.icon }}</span>
         <span class="rmain">
           <span class="rname">{{ ev.name }}</span>
-          <span class="rcount" :class="{ hot: computeDisplay(ev, now).isToday }">
-            {{ computeDisplay(ev, now).text }}
+          <span class="rcount" :class="{ hot: computeDisplay(ev, now, attendanceRecords).isToday }">
+            {{ computeDisplay(ev, now, attendanceRecords).text }}
           </span>
         </span>
         <button class="rx" title="从桌面移除" @click.stop="removeRow(ev)">✕</button>
@@ -175,7 +178,7 @@ async function removeRow(ev: EventItem): Promise<void> {
   display: flex;
   flex-direction: column;
   background: rgba(255, 255, 255, 0.93);
-  border-radius: 18px;
+  border-radius: 8px;
   box-shadow: 0 8px 24px rgba(60, 74, 96, 0.25);
   overflow: hidden;
 }
@@ -193,7 +196,7 @@ async function removeRow(ev: EventItem): Promise<void> {
   font-size: 13px;
   font-weight: 700;
   color: #4a5462;
-  letter-spacing: 0.5px;
+  letter-spacing: 0;
 }
 
 .tools {
@@ -236,7 +239,7 @@ async function removeRow(ev: EventItem): Promise<void> {
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  border-radius: 12px;
+  border-radius: 6px;
   cursor: pointer;
   transition: transform 0.15s;
 }

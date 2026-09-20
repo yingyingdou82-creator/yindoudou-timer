@@ -15,6 +15,25 @@ interface DataFile {
   events: EventItem[]
 }
 
+function cleanStoredEvents(raw: unknown): EventItem[] {
+  const list = Array.isArray(raw) ? raw : []
+  const cleaned: EventItem[] = []
+  for (const item of list) {
+    try {
+      const draft = sanitizeDraft(item)
+      const saved = (item ?? {}) as Partial<EventItem>
+      cleaned.push({
+        ...draft,
+        id: typeof saved.id === 'string' && saved.id ? saved.id : randomUUID(),
+        createdAt: typeof saved.createdAt === 'number' ? saved.createdAt : Date.now()
+      })
+    } catch {
+      // 跳过单条坏数据，避免一个损坏事件导致整个应用打不开
+    }
+  }
+  return cleaned
+}
+
 function readAll(): DataFile {
   const file = DATA_FILE()
   if (!existsSync(file)) {
@@ -22,7 +41,7 @@ function readAll(): DataFile {
   }
   try {
     const parsed = JSON.parse(readFileSync(file, 'utf-8')) as Partial<DataFile>
-    return { version: 1, events: Array.isArray(parsed?.events) ? parsed.events : [] }
+    return { version: 1, events: cleanStoredEvents(parsed?.events) }
   } catch (err) {
     // 文件损坏时先备份原文件再重置，避免用户的旧数据被直接覆盖
     console.error('数据文件读取失败，已备份并重置为空', err)

@@ -20,9 +20,19 @@ body {
     system-ui,
     -apple-system,
     sans-serif;
-  color: #3a4149;
-  background: #f2f4f8;
+  color: #303944;
+  background: #f6f7f9;
   -webkit-font-smoothing: antialiased;
+}
+
+:root {
+  --el-color-primary: #587b96;
+  --el-color-primary-light-3: #89a6bd;
+  --el-color-primary-light-5: #b1c5d3;
+  --el-color-primary-light-7: #d8e3ea;
+  --el-color-primary-light-9: #f0f5f8;
+  --el-border-radius-base: 6px;
+  --el-border-radius-small: 5px;
 }
 
 /* ---- 深色模式（html 加 dark 类时生效） ---- */
@@ -32,12 +42,12 @@ html.dark body {
 }
 
 html.dark .page {
-  background: linear-gradient(165deg, #272c34 0%, #21262d 60%, #1d2229 100%);
+  background: #20262d;
 }
 
 html.dark .topbar {
-  background: rgba(33, 38, 45, 0.8);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  background: rgba(30, 36, 44, 0.92);
+  border-bottom-color: rgba(151, 164, 178, 0.14);
 }
 
 html.dark .brand-name,
@@ -47,7 +57,8 @@ html.dark .empty-title {
 
 html.dark .logo,
 html.dark .empty-bean {
-  background: linear-gradient(145deg, #3a4149, #22262d);
+  background: #2c343e;
+  border-color: #3d4854;
 }
 
 html.dark .set-row {

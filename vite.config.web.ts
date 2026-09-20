@@ -9,6 +9,8 @@ import vue from '@vitejs/plugin-vue'
  */
 export default defineConfig({
   root: 'src/renderer',
+  // Web download APK is copied after Android build; keep it out of Capacitor assets.
+  publicDir: false,
   plugins: [vue()],
   resolve: {
     alias: {

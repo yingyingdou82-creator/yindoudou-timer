@@ -37,7 +37,8 @@
         <!-- 桌面小组件：小 / 中 / 大 三种尺寸 -->
         <receiver
             android:name=".YddWidgetProviderSmall"
-            android:exported="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
             android:label="银豆豆小组件·小">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -48,7 +49,8 @@
         </receiver>
         <receiver
             android:name=".YddWidgetProviderMedium"
-            android:exported="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
             android:label="银豆豆小组件·中">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -59,7 +61,8 @@
         </receiver>
         <receiver
             android:name=".YddWidgetProviderLarge"
-            android:exported="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
             android:label="银豆豆小组件·大">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />

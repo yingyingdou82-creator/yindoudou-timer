@@ -12,6 +12,7 @@ import {
 import { getAppSettings, saveAppSettings, type WidgetSettings } from './settings'
 import { exportBackup, importBackup } from './backup'
 import type { BrowserWindow as MainWindowType } from 'electron'
+import { listAttendance, removeAttendance, upsertAttendance } from './attendance'
 
 /**
  * 注册"传话"接口。
@@ -48,6 +49,18 @@ export function registerEventIpc(getMainWindow: () => MainWindowType | null): vo
   })
   ipcMain.handle('events:remove', (_event, id: string) => {
     removeEvent(id)
+    broadcastChanged()
+  })
+
+  // 实际出勤打卡（日历中一天只保留一条状态）
+  ipcMain.handle('attendance:list', () => listAttendance())
+  ipcMain.handle('attendance:upsert', (_event, draft: unknown) => {
+    const item = upsertAttendance(draft)
+    broadcastChanged()
+    return item
+  })
+  ipcMain.handle('attendance:remove', (_event, date: string) => {
+    removeAttendance(date)
     broadcastChanged()
   })
 

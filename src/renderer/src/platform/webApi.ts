@@ -1,6 +1,15 @@
 import { ElMessageBox } from 'element-plus'
-import type { EventDraft, EventItem } from '@shared/types'
-import { sanitizeDraft } from '@shared/sanitize'
+import type {
+  AttendanceRecord,
+  AttendanceRecordDraft,
+  EventDraft,
+  EventItem
+} from '@shared/types'
+import {
+  sanitizeAttendanceDraft,
+  sanitizeAttendanceRecords,
+  sanitizeDraft
+} from '@shared/sanitize'
 import { kvDelete, kvGet, kvKeys, kvSet } from './webStorage'
 
 /**
@@ -36,6 +45,14 @@ async function writeEvents(list: EventItem[]): Promise<void> {
   await kvSet('events', list)
 }
 
+async function readAttendance(): Promise<AttendanceRecord[]> {
+  return sanitizeAttendanceRecords(await kvGet<AttendanceRecord[]>('attendance'))
+}
+
+async function writeAttendance(list: AttendanceRecord[]): Promise<void> {
+  await kvSet('attendance', list)
+}
+
 async function readSettings(): Promise<WebSettings> {
   const s = (await kvGet<WebSettings>('settings')) ?? {
     theme: 'light' as const,
@@ -66,6 +83,11 @@ function imageExtOf(dataUrl: string): string {
   const m = /^data:image\/(jpeg|png|webp);/.exec(dataUrl)
   if (!m) throw new Error('图片格式不支持，请换一张')
   return m[1] === 'jpeg' ? 'jpg' : m[1]
+}
+
+function dataUrlByteSize(dataUrl: string): number {
+  const b64 = dataUrl.split(',')[1] ?? ''
+  return Math.floor((b64.length * 3) / 4)
 }
 
 /** 让浏览器下载一个文件（网页版备份导出用） */
@@ -129,9 +151,35 @@ export function createWebApi(): WebApi {
         emitChanged()
       }
     },
+    attendance: {
+      list: () => readAttendance(),
+      upsert: async (draft: AttendanceRecordDraft) => {
+        const clean = sanitizeAttendanceDraft(draft)
+        const item: AttendanceRecord = { ...clean, updatedAt: Date.now() }
+        const records = await readAttendance()
+        const index = records.findIndex((record) => record.date === item.date)
+        if (index >= 0) {
+          records[index] = item
+        } else {
+          records.push(item)
+        }
+        records.sort((a, b) => a.date.localeCompare(b.date))
+        await writeAttendance(records)
+        emitChanged()
+        return item
+      },
+      remove: async (date: string) => {
+        const records = await readAttendance()
+        await writeAttendance(records.filter((record) => record.date !== date))
+        emitChanged()
+      }
+    },
     images: {
       save: async (dataUrl: string) => {
         const ext = imageExtOf(dataUrl)
+        if (dataUrlByteSize(dataUrl) > 5 * 1024 * 1024) {
+          throw new Error('图片太大了（压缩后仍超过 5MB），请换一张')
+        }
         const filename = `img_${Date.now()}_${uuid().slice(0, 8)}.${ext}`
         await kvSet(IMG_PREFIX + filename, dataUrl)
         return filename
@@ -225,9 +273,10 @@ export function createWebApi(): WebApi {
           const today = new Date().toISOString().slice(0, 10)
           const content = JSON.stringify({
             app: 'yin-dou-dou-timer',
-            version: 1,
+            version: 2,
             exportedAt: new Date().toISOString(),
             events,
+            attendance: await readAttendance(),
             images
           })
           downloadFile(`银豆豆计时备份-${today}.json`, content)
@@ -243,6 +292,7 @@ export function createWebApi(): WebApi {
           const parsed = JSON.parse(await file.text()) as {
             app?: string
             events?: unknown[]
+            attendance?: unknown[]
             images?: Record<string, string>
           }
           if (parsed?.app !== 'yin-dou-dou-timer' || !Array.isArray(parsed?.events)) {
@@ -264,6 +314,7 @@ export function createWebApi(): WebApi {
             }
           }
           if (cleaned.length === 0) return { ok: false, error: '备份里没有可用的事件' }
+          const attendance = sanitizeAttendanceRecords(parsed.attendance)
 
           // 问合并还是替换（关闭弹窗 = 取消）
           let mode: 'merge' | 'replace' | 'cancel' = 'cancel'
@@ -286,7 +337,11 @@ export function createWebApi(): WebApi {
 
           // 还原图片
           for (const [filename, dataUrl] of Object.entries(parsed.images ?? {})) {
-            if (/^[a-zA-Z0-9_-]+\.(jpg|png|webp)$/.test(filename)) {
+            if (
+              /^[a-zA-Z0-9_-]+\.(jpg|png|webp)$/.test(filename) &&
+              /^data:image\/(jpeg|png|webp);base64,/.test(dataUrl) &&
+              dataUrlByteSize(dataUrl) <= 10 * 1024 * 1024
+            ) {
               await kvSet(IMG_PREFIX + filename, dataUrl)
             }
           }
@@ -294,6 +349,7 @@ export function createWebApi(): WebApi {
           let imported: number
           if (mode === 'replace') {
             await writeEvents(cleaned)
+            await writeAttendance(attendance)
             imported = cleaned.length
           } else {
             const list = await readEvents()
@@ -307,6 +363,16 @@ export function createWebApi(): WebApi {
               }
             }
             await writeEvents(list)
+            const existingAttendance = new Map(
+              (await readAttendance()).map((record) => [record.date, record])
+            )
+            for (const record of attendance) {
+              const current = existingAttendance.get(record.date)
+              if (!current || record.updatedAt >= current.updatedAt) {
+                existingAttendance.set(record.date, record)
+              }
+            }
+            await writeAttendance([...existingAttendance.values()])
             imported = added
           }
           emitChanged()

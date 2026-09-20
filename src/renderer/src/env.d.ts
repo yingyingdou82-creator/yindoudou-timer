@@ -1,4 +1,9 @@
-import type { EventDraft, EventItem } from '@shared/types'
+import type {
+  AttendanceRecord,
+  AttendanceRecordDraft,
+  EventDraft,
+  EventItem
+} from '@shared/types'
 
 // 告诉 TypeScript：window 上有 api 这个对象（由 preload 提供）
 declare global {
@@ -9,6 +14,11 @@ declare global {
         create(draft: EventDraft): Promise<EventItem>
         update(id: string, draft: EventDraft): Promise<EventItem>
         remove(id: string): Promise<void>
+      }
+      attendance: {
+        list(): Promise<AttendanceRecord[]>
+        upsert(draft: AttendanceRecordDraft): Promise<AttendanceRecord>
+        remove(date: string): Promise<void>
       }
       images: {
         save(dataUrl: string): Promise<string>

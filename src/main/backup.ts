@@ -2,10 +2,15 @@ import { dialog } from 'electron'
 import type { BrowserWindow } from 'electron'
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
-import type { EventItem } from '../shared/types'
+import type { AttendanceRecord, EventItem } from '../shared/types'
 import { appendEvents, listEvents, replaceEvents } from './store'
-import { sanitizeDraft } from '../shared/sanitize'
+import { sanitizeAttendanceRecords, sanitizeDraft } from '../shared/sanitize'
 import { getImage, imgDir, restoreImage } from './images'
+import {
+  listAttendance,
+  mergeAttendance,
+  replaceAttendance
+} from './attendance'
 
 /**
  * 备份导出/导入：
@@ -15,9 +20,11 @@ import { getImage, imgDir, restoreImage } from './images'
 
 interface BackupFile {
   app: 'yin-dou-dou-timer'
-  version: 1
+  version: 1 | 2
   exportedAt: string
   events: EventItem[]
+  /** v2 新增：手动出勤记录。旧备份没有这个字段时按空记录处理。 */
+  attendance?: AttendanceRecord[]
   /** 文件名 -> 图片内容（dataURL） */
   images: Record<string, string>
 }
@@ -46,9 +53,10 @@ export async function exportBackup(parent: BrowserWindow | null): Promise<Export
     }
     const backup: BackupFile = {
       app: 'yin-dou-dou-timer',
-      version: 1,
+      version: 2,
       exportedAt: new Date().toISOString(),
       events: listEvents(),
+      attendance: listAttendance(),
       images
     }
 
@@ -112,6 +120,7 @@ export async function importBackup(parent: BrowserWindow | null): Promise<Import
     if (events.length === 0) {
       return { ok: false, error: '备份里没有可用的事件' }
     }
+    const attendance = sanitizeAttendanceRecords(parsed.attendance)
 
     // 问用户怎么导：合并 or 替换
     const choice = parent
@@ -139,6 +148,11 @@ export async function importBackup(parent: BrowserWindow | null): Promise<Import
 
     const imported =
       choice.response === 1 ? replaceEvents(events) : appendEvents(events)
+    if (choice.response === 1) {
+      replaceAttendance(attendance)
+    } else {
+      mergeAttendance(attendance)
+    }
     return { ok: true, imported }
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : String(err) }

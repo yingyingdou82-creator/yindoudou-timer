@@ -1,5 +1,10 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { EventDraft, EventItem } from '../shared/types'
+import type {
+  AttendanceRecord,
+  AttendanceRecordDraft,
+  EventDraft,
+  EventItem
+} from '../shared/types'
 
 // 把"传话接口"安全地暴露给界面使用
 contextBridge.exposeInMainWorld('api', {
@@ -9,6 +14,12 @@ contextBridge.exposeInMainWorld('api', {
     update: (id: string, draft: EventDraft): Promise<EventItem> =>
       ipcRenderer.invoke('events:update', id, draft),
     remove: (id: string): Promise<void> => ipcRenderer.invoke('events:remove', id)
+  },
+  attendance: {
+    list: (): Promise<AttendanceRecord[]> => ipcRenderer.invoke('attendance:list'),
+    upsert: (draft: AttendanceRecordDraft): Promise<AttendanceRecord> =>
+      ipcRenderer.invoke('attendance:upsert', draft),
+    remove: (date: string): Promise<void> => ipcRenderer.invoke('attendance:remove', date)
   },
   images: {
     /** 保存一张图片（dataURL），返回文件名 */

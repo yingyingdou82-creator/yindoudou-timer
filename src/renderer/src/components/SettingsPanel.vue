@@ -2,6 +2,7 @@
 import { onMounted, onUnmounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { isElectron, platformApi } from '../platform'
+import appIconUrl from '../assets/app-icon.png'
 
 /**
  * 设置面板：电脑版放在「⚙ 设置」弹窗里，手机版是底部导航的「设置」页。
@@ -12,6 +13,7 @@ const emit = defineEmits<{ replayGuide: []; openWidgetPicker: [] }>()
 const dark = ref(false)
 const fontScale = ref(1)
 const autoLaunch = ref(false)
+const showVersionDetails = ref(false)
 let unsubTheme: (() => void) | undefined
 let unsubFont: (() => void) | undefined
 
@@ -122,7 +124,47 @@ async function doImport(): Promise<void> {
       <el-button size="small" @click="emit('replayGuide')">重新查看</el-button>
     </div>
 
+    <div class="row">
+      <span>版本与功能</span>
+      <el-button size="small" @click="showVersionDetails = true">查看详情</el-button>
+    </div>
+
     <div v-if="isElectron" class="tip">退出软件请用右下角托盘图标的「退出」</div>
+
+    <el-dialog
+      v-model="showVersionDetails"
+      title="版本与功能"
+      width="520px"
+      append-to-body
+      class="feature-dialog"
+    >
+      <div class="feature-brand">
+        <img :src="appIconUrl" alt="银豆豆计时" />
+        <div>
+          <strong>银豆豆计时</strong>
+          <span>v1.1.0 · 全部数据仅保存在本机</span>
+        </div>
+      </div>
+
+      <div class="feature-list">
+        <section>
+          <strong>重要日期</strong>
+          <p>倒数日、正数日、时间段、具体时间、提醒，以及自然日、工作日、按周和按年四种算法。</p>
+        </section>
+        <section>
+          <strong>出勤打卡</strong>
+          <p>按真实上班日期记录。周末加班可标上班，工作日请假可留下说明；事件的工作日也能切换为实际打卡统计。</p>
+        </section>
+        <section>
+          <strong>桌面小组件</strong>
+          <p>Windows 悬浮面板和安卓系统小组件都可选择具体事件显示，修改后会自动同步。</p>
+        </section>
+        <section>
+          <strong>备份与隐私</strong>
+          <p>事件、图片和出勤记录可导出为一个备份文件；应用不上传你的数据。</p>
+        </section>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -160,5 +202,75 @@ html.dark .row {
   color: #b0b9c4;
   text-align: center;
   line-height: 1.7;
+}
+
+.feature-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e9edf1;
+}
+
+.feature-brand img {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.feature-brand strong,
+.feature-brand span {
+  display: block;
+}
+
+.feature-brand strong {
+  color: #2f3845;
+  font-size: 16px;
+}
+
+.feature-brand span {
+  margin-top: 4px;
+  color: #8a94a1;
+  font-size: 12px;
+}
+
+.feature-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.feature-list section {
+  padding: 14px 0;
+  border-bottom: 1px solid #edf0f3;
+}
+
+.feature-list section:last-child {
+  border-bottom: none;
+}
+
+.feature-list strong {
+  color: #3a4552;
+  font-size: 14px;
+}
+
+.feature-list p {
+  margin: 6px 0 0;
+  color: #7d8793;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+html.dark .feature-brand {
+  border-color: #414a56;
+}
+
+html.dark .feature-brand strong,
+html.dark .feature-list strong {
+  color: #e7ebf0;
+}
+
+html.dark .feature-list section {
+  border-color: #414a56;
 }
 </style>

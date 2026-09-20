@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.appwidget.AppWidgetManager;
 import android.content.ComponentName;
 import android.content.Context;
+import android.os.Build;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -21,12 +22,15 @@ public class WidgetBridge extends Plugin {
     @PluginMethod
     public void sync(PluginCall call) {
         String data = call.getString("data", "[]");
+        String attendance = call.getString("attendance", "[]");
         try {
             Context ctx = getContext();
             ctx.getSharedPreferences("ydd_widget", Context.MODE_PRIVATE)
                 .edit()
                 .putString("data", data)
-                .apply();
+                .putString("attendance", attendance)
+                // 小组件紧接着就会刷新，用 commit 保证刷新时能读到最新事件。
+                .commit();
             YddWidgetProvider.pushUpdate(ctx);
             JSObject ret = new JSObject();
             ret.put("ok", true);
@@ -34,6 +38,24 @@ public class WidgetBridge extends Plugin {
         } catch (Exception e) {
             call.reject("小组件数据同步失败: " + e.getMessage());
         }
+    }
+
+    /** 返回桌面上已有的小组件数量，用来决定是否提示用户添加。 */
+    @PluginMethod
+    public void getStatus(PluginCall call) {
+        Context ctx = getContext();
+        AppWidgetManager mgr = AppWidgetManager.getInstance(ctx);
+        int count =
+            mgr.getAppWidgetIds(new ComponentName(ctx, YddWidgetProviderSmall.class)).length +
+            mgr.getAppWidgetIds(new ComponentName(ctx, YddWidgetProviderMedium.class)).length +
+            mgr.getAppWidgetIds(new ComponentName(ctx, YddWidgetProviderLarge.class)).length;
+        JSObject ret = new JSObject();
+        ret.put("count", count);
+        ret.put(
+            "canPin",
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && mgr.isRequestPinAppWidgetSupported()
+        );
+        call.resolve(ret);
     }
 
     /** 界面启动时问一次"是不是点桌面小组件进来的"，读完即清（只生效一次） */
@@ -59,8 +81,12 @@ public class WidgetBridge extends Plugin {
         AppWidgetManager mgr = AppWidgetManager.getInstance(act);
         // 一键添加默认放"中号"；小号/大号在桌面长按 → 小组件里选
         ComponentName provider = new ComponentName(act, YddWidgetProviderMedium.class);
-        if (mgr.isRequestPinAppWidgetSupported()) {
-            mgr.requestPinAppWidget(provider, null, null);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && mgr.isRequestPinAppWidgetSupported()) {
+            boolean requested = mgr.requestPinAppWidget(provider, null, null);
+            if (!requested) {
+                call.reject("桌面暂时无法添加小组件，请长按桌面空白处后在小组件列表中添加");
+                return;
+            }
             JSObject ret = new JSObject();
             ret.put("ok", true);
             call.resolve(ret);

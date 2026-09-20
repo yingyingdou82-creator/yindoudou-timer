@@ -56,7 +56,9 @@ export function restoreImage(filename: string, dataUrl: string): void {
   if (!NAME_RE.test(filename)) throw new Error('图片文件名不正确')
   const match = /^data:image\/(jpeg|png|webp);base64,(.+)$/.exec(dataUrl)
   if (!match) throw new Error('图片数据不正确')
-  writeFileSync(join(imgDir(), filename), Buffer.from(match[2], 'base64'))
+  const buf = Buffer.from(match[2], 'base64')
+  if (buf.length > 10 * 1024 * 1024) throw new Error('图片太大（超过 10MB）')
+  writeFileSync(join(imgDir(), filename), buf)
 }
 
 /**

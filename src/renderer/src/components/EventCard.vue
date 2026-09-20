@@ -4,6 +4,7 @@ import type { EventItem } from '@shared/types'
 import { computeDisplay } from '../utils/calc'
 import { colorOf, COUNT_TYPE_LABELS, remindLabel } from '../constants/ui'
 import { useImages } from '../composables/useImages'
+import { useAttendance } from '../composables/useAttendance'
 
 const props = defineProps<{ event: EventItem }>()
 defineEmits<{ edit: []; archive: []; remove: [] }>()
@@ -22,7 +23,8 @@ onUnmounted(() => {
   if (nowTimer) window.clearInterval(nowTimer)
 })
 
-const display = computed(() => computeDisplay(props.event, now.value))
+const { attendanceRecords } = useAttendance()
+const display = computed(() => computeDisplay(props.event, now.value, attendanceRecords.value))
 
 // 倒计时文案太长时自动缩小字号
 const countClass = computed(() => (display.value.text.length > 14 ? 'count small' : 'count'))
@@ -74,6 +76,14 @@ watch(
 
     <div class="meta">
       <el-tag size="small" effect="plain" round>{{ COUNT_TYPE_LABELS[event.countType] }}</el-tag>
+      <el-tag
+        v-if="event.countType === 'workday' && event.workdayMode === 'attendance'"
+        size="small"
+        effect="plain"
+        round
+      >
+        实际出勤
+      </el-tag>
       <el-tag v-if="event.endDate" size="small" effect="plain" round>时间段</el-tag>
       <el-tag v-if="event.onDesktop" size="small" effect="plain" round>🖥 桌面</el-tag>
       <el-tag v-if="event.includeStartDay" size="small" effect="plain" round>含起始日</el-tag>
@@ -97,26 +107,42 @@ watch(
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   min-height: 168px;
-  padding: 16px 18px;
-  background: var(--c-soft);
-  border: 1px solid rgba(255, 255, 255, 0.9);
-  border-radius: 24px;
-  box-shadow: 0 3px 10px rgba(96, 112, 138, 0.08);
+  padding: 17px 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(250, 251, 252, 0.96));
+  border: 1px solid rgba(72, 86, 103, 0.1);
+  border-radius: 8px;
+  box-shadow:
+    0 1px 2px rgba(45, 56, 70, 0.03),
+    0 10px 26px rgba(45, 56, 70, 0.06);
   transition:
     transform 0.2s,
     box-shadow 0.2s;
 }
 
+.card:not(.hasImg)::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 18px;
+  bottom: 18px;
+  width: 3px;
+  border-radius: 0 4px 4px 0;
+  background: var(--c-main);
+  opacity: 0.72;
+}
+
 .card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 20px rgba(96, 112, 138, 0.16);
+  transform: translateY(-2px);
+  box-shadow:
+    0 2px 4px rgba(45, 56, 70, 0.04),
+    0 16px 34px rgba(45, 56, 70, 0.1);
 }
 
 .card.today {
-  outline: 2px dashed var(--c-main);
-  outline-offset: 2px;
+  border-color: var(--c-main);
+  box-shadow: inset 3px 0 0 var(--c-main);
 }
 
 /* 有背景图时：图片铺满卡片，上浅下深的暗色渐变保证文字可读 */
@@ -164,9 +190,10 @@ watch(
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #ffffff;
-  border-radius: 14px;
-  box-shadow: inset 0 -2px 6px rgba(120, 134, 156, 0.15);
+  background: var(--c-soft);
+  border: 1px solid rgba(112, 126, 144, 0.12);
+  border-radius: 8px;
+  box-shadow: none;
   flex-shrink: 0;
 }
 
@@ -203,9 +230,9 @@ watch(
 /* 倒计时大字：卡片的主角 */
 .count {
   margin-top: auto;
-  font-size: 26px;
+  font-size: 27px;
   font-weight: 800;
-  color: #3d4653;
+  color: #222b36;
   line-height: 1.25;
 }
 
@@ -236,6 +263,13 @@ watch(
   gap: 6px;
 }
 
+.meta :deep(.el-tag) {
+  border-radius: 5px;
+  background: rgba(248, 250, 252, 0.84);
+  border-color: rgba(91, 107, 124, 0.14);
+  color: #697584;
+}
+
 .note {
   font-size: 12px;
   color: #8a94a2;
@@ -260,5 +294,29 @@ watch(
 
 .hasImg :deep(.el-button--danger) {
   color: #ffb3a8;
+}
+
+html.dark .card:not(.hasImg) {
+  background: linear-gradient(180deg, rgba(39, 45, 54, 0.96), rgba(34, 40, 48, 0.96));
+  border-color: rgba(151, 164, 178, 0.14);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.16),
+    0 12px 28px rgba(0, 0, 0, 0.24);
+}
+
+html.dark .name,
+html.dark .count {
+  color: #edf1f6;
+}
+
+html.dark .date-chip,
+html.dark .note {
+  color: #a6b0bd;
+}
+
+html.dark .meta :deep(.el-tag) {
+  background: rgba(48, 56, 67, 0.88);
+  border-color: rgba(151, 164, 178, 0.16);
+  color: #c7d0da;
 }
 </style>
