@@ -5,7 +5,7 @@ import type { FormInstance } from 'element-plus'
 import type { EventDraft, EventItem } from '@shared/types'
 import { useEvents } from '../composables/useEvents'
 import { useImages } from '../composables/useImages'
-import { platformApi } from '../platform'
+import { isElectron, platformApi } from '../platform'
 import { fileToResizedDataUrl } from '../utils/image'
 import { computeDisplay } from '../utils/calc'
 import {
@@ -37,6 +37,25 @@ const dragging = ref(false)
 
 function openPicker(): void {
   fileInput.value?.click()
+}
+
+/** 手机端拍照（调用系统相机） */
+async function takePhoto(): Promise<void> {
+  try {
+    const { Camera, CameraResultType, CameraSource } = await import('@capacitor/camera')
+    const photo = await Camera.getPhoto({
+      quality: 85,
+      resultType: CameraResultType.DataUrl,
+      source: CameraSource.Camera,
+      width: 1200,
+      height: 1200
+    })
+    if (photo.dataUrl) {
+      setPicked(photo.dataUrl)
+    }
+  } catch {
+    // 用户取消或权限被拒
+  }
 }
 
 function setPicked(dataUrl: string): void {
@@ -396,6 +415,7 @@ async function onSave(): Promise<void> {
           </div>
           <el-button v-if="imagePreview" link size="small" @click="openPicker">换一张</el-button>
           <el-button v-else size="small" @click="openPicker">＋ 选择图片</el-button>
+          <el-button v-if="!isElectron" size="small" @click="takePhoto">📷 拍照</el-button>
           <span class="img-hint">也可以：把图片直接拖到这里 · Ctrl+V 粘贴截图 · 从网页拖图片进来</span>
           <input
             ref="fileInput"

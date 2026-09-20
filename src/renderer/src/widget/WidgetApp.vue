@@ -58,7 +58,9 @@ function applyFont(scale: number): void {
 async function reportHeight(): Promise<void> {
   const HEAD = 46 // 标题栏
   const PAD = 12
-  const ROW = 58 // 每条事件约 58 像素
+  // 不同宽度档位每条事件的行高不同
+  const ROWS = [44, 58, 66] // 窄 / 中 / 宽
+  const ROW = ROWS[sizeLevel.value] ?? 58
   const EMPTY = 96 // 空状态提示
   const base = rows.value.length === 0 ? EMPTY : HEAD + PAD + rows.value.length * ROW
   await platformApi.widget.setHeight(Math.round(base * fontScale.value))
@@ -133,7 +135,7 @@ async function removeRow(ev: EventItem): Promise<void> {
 </script>
 
 <template>
-  <div id="widget-body" class="widget">
+  <div id="widget-body" class="widget" :class="['size-narrow', 'size-medium', 'size-wide'][sizeLevel]">
     <div class="head">
       <span class="brand">🫘 银豆豆</span>
       <span class="tools">
@@ -323,5 +325,46 @@ async function removeRow(ev: EventItem): Promise<void> {
 .rows::-webkit-scrollbar-thumb {
   background: #c6cfda;
   border-radius: 2px;
+}
+/* —— 宽度档位差异化布局 —— */
+
+/* 窄档（230px）：只显示图标+天数大字，隐藏事件名，更紧凑 */
+.size-narrow .rname {
+  display: none;
+}
+.size-narrow .rmain {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+.size-narrow .rcount {
+  font-size: 16px;
+}
+.size-narrow .row {
+  padding: 6px 8px;
+}
+.size-narrow .ricon {
+  font-size: 20px;
+}
+
+/* 宽档（380px）：字号加大、间距增加，更舒展 */
+.size-wide .row {
+  padding: 10px 14px;
+  gap: 12px;
+}
+.size-wide .rname {
+  font-size: 14px;
+}
+.size-wide .rcount {
+  font-size: 15px;
+}
+.size-wide .ricon {
+  font-size: 24px;
+}
+.size-wide .rows {
+  gap: 8px;
+}
+.size-wide .brand {
+  font-size: 15px;
 }
 </style>

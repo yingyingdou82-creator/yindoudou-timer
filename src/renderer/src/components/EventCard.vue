@@ -7,7 +7,7 @@ import { useImages } from '../composables/useImages'
 import { useAttendance } from '../composables/useAttendance'
 
 const props = defineProps<{ event: EventItem }>()
-defineEmits<{ edit: []; archive: []; remove: [] }>()
+defineEmits<{ click: [] }>()
 
 const color = computed(() => colorOf(props.event.color))
 
@@ -53,6 +53,7 @@ watch(
       ...(imgUrl ? { backgroundImage: `url(${imgUrl})` } : {}),
       ...(!imgUrl && !display.isToday ? { color: color.main } : {})
     }"
+    @click="$emit('click')"
   >
     <div class="top">
       <div class="icon">{{ event.icon }}</div>
@@ -64,11 +65,6 @@ watch(
         <span class="date-chip">
           📅 {{ event.date }}{{ event.time ? ` ${event.time}` : '' }}{{ event.endDate ? ` ~ ${event.endDate}` : '' }}
         </span>
-      </div>
-      <div class="ops">
-        <el-button link size="small" @click="$emit('edit')">编辑</el-button>
-        <el-button link size="small" @click="$emit('archive')">归档</el-button>
-        <el-button link size="small" type="danger" @click="$emit('remove')">删除</el-button>
       </div>
     </div>
 
@@ -119,6 +115,7 @@ watch(
   transition:
     transform 0.2s,
     box-shadow 0.2s;
+  cursor: pointer;
 }
 
 .card:not(.hasImg)::after {

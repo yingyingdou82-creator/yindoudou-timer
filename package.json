@@ -63,6 +63,7 @@
     "vue-tsc": "^3.3.11"
   },
   "dependencies": {
+    "@capacitor/camera": "^8.2.4",
     "@capacitor/local-notifications": "^8.3.1"
   }
 }

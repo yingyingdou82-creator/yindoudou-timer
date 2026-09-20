@@ -11,6 +11,7 @@ import { isElectron, platformApi } from './platform'
 import { scheduleMobileReminders } from './platform/mobileReminders'
 import { computeDisplay } from './utils/calc'
 import EventCard from './components/EventCard.vue'
+import EventDetail from './components/EventDetail.vue'
 import EventEditDialog from './components/EventEditDialog.vue'
 import SettingsPanel from './components/SettingsPanel.vue'
 import OnboardingGuide from './components/OnboardingGuide.vue'
@@ -23,6 +24,8 @@ const { clearAll: clearImageCache } = useImages()
 const search = ref('')
 const dialogShow = ref(false)
 const editing = ref<EventItem | null>(null)
+const detailShow = ref(false)
+const detailEvent = ref<EventItem | null>(null)
 
 // 桌面小组件开关状态
 const widgetOn = ref(false)
@@ -437,9 +440,7 @@ async function onRemove(ev: EventItem): Promise<void> {
         v-for="ev in shown"
         :key="ev.id"
         :event="ev"
-        @edit="openEdit(ev)"
-        @archive="onArchive(ev)"
-        @remove="onRemove(ev)"
+        @click="detailEvent = ev; detailShow = true"
       />
 
       <div v-if="archivedList.length > 0" class="arch-entry" @click="showArchive = true">
@@ -540,6 +541,7 @@ async function onRemove(ev: EventItem): Promise<void> {
 
     <OnboardingGuide :show="showGuide" @finished="finishGuide" />
 
+    <EventDetail v-model:show="detailShow" :event="detailEvent" @edit="openEdit" />
     <EventEditDialog v-model:show="dialogShow" :event="editing" />
 
     <el-drawer v-model="showArchive" title="📦 归档的事件" size="400px">

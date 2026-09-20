@@ -121,11 +121,19 @@ function buildParts(
       if (ev.workdayMode === 'attendance') {
         return `${actualWorkedDays(attendance, fromNo, toNo)} 个实际出勤日`
       }
-      // 打开"叠加法定节假日"后：放假日扣掉、补班日加回（见 shared/holidays.ts）
+      // 日历模式：先看有没有打卡记录，有则按打卡判断；没有再按日历规则
+      const attMap = new Map(attendance.map((r) => [r.date, r.status]))
       let n = 0
       for (let d = fromNo + 1; d <= toNo; d++) {
-        const ok = ev.workdayHoliday ? isWorkdayDate(strOfDayNo(d)) : isWeekday(d)
-        if (ok) n++
+        const dateStr = strOfDayNo(d)
+        const att = attMap.get(dateStr)
+        if (att !== undefined) {
+          if (att === 'worked') n++ // 打卡"上班"→计入（含周末加班）
+          // "请假"/"休息"→不计入
+        } else {
+          const ok = ev.workdayHoliday ? isWorkdayDate(dateStr) : isWeekday(d)
+          if (ok) n++
+        }
       }
       return `${n} 个工作日`
     }
